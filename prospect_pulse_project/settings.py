@@ -29,7 +29,9 @@ SECRET_KEY = 'django-insecure-woykz#!nbg$&p#cj_@ufjhlty#q(7rp#%3+(qy3h)l9bgnfbe+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "prospect-pulse-xfvp.vercel.app",
+]
 
 
 # Application definition
