@@ -30,10 +30,12 @@ SECRET_KEY = 'django-insecure-woykz#!nbg$&p#cj_@ufjhlty#q(7rp#%3+(qy3h)l9bgnfbe+
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    "http://prospect-pulse-xfvp.vercel.app",
-    "http://localhost:8000/",
+    "prospect-pulse-xfvp.vercel.app",
+    "localhost",
+    "127.0.0.1:8000/"
     "prospect-pulse-xfvp-of4ydeiaa-test11-6ba9.vercel.app",
     ".vercel.app",
+    "prospect-pulse-xfvp-92z81g5sb-test11-6ba9.vercel.app",
 ]
 
 
