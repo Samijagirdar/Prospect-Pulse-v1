@@ -32,6 +32,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "http://prospect-pulse-xfvp.vercel.app",
     "http://localhost:8000/",
+    "prospect-pulse-xfvp-of4ydeiaa-test11-6ba9.vercel.app"
 ]
 
 
