@@ -81,10 +81,28 @@ WSGI_APPLICATION = 'prospect_pulse_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+import os
+import shutil
+
+IS_VERCEL = os.environ.get('VERCEL') == '1'
+
+if IS_VERCEL:
+    db_path = Path('/tmp') / 'db.sqlite3'
+    source_db = BASE_DIR / 'db.sqlite3'
+    if source_db.exists() and not db_path.exists():
+        try:
+            shutil.copy2(source_db, db_path)
+            # Ensure permissions are writeable
+            os.chmod(db_path, 0o666)
+        except Exception as e:
+            print(f"Error copying SQLite database to /tmp: {e}")
+else:
+    db_path = BASE_DIR / 'db.sqlite3'
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': db_path,
     }
 }
 
