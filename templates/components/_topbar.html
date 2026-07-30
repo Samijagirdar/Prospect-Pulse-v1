@@ -1,0 +1,25 @@
+<!-- Topbar Component -->
+<div class="topbar">
+  <div>
+    <div class="topbar-title">{% block topbar_title %}Dashboard{% endblock %}</div>
+    <div class="topbar-sub">{% block topbar_sub %}{% endblock %}</div>
+  </div>
+  <div class="topbar-right">
+    {% block topbar_actions %}{% endblock %}
+    {% block topbar_extra %}{% endblock %}
+
+    <!-- User profile dropdown -->
+    <div class="dropdown" style="position:relative;">
+      <button class="user-card"
+        style="border:none;background:none;cursor:pointer;padding:6px 10px;border-radius:var(--radius-sm);gap:8px;display:flex;align-items:center;"
+        id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+        <div class="avatar avatar-sm">
+          {{ request.user.first_name|first|upper|default:request.user.username|first|upper|default:"A" }}
+        </div>
+        <span style="font-size:13px;font-weight:500;color:var(--text);">
+          {{ request.user.get_full_name|default:request.user.username|default:"Admin" }}
+        </span>
+      </button>
+    </div>
+  </div>
+</div>

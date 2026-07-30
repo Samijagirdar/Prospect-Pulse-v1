@@ -1,0 +1,278 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block content %}
+<div style="padding: 24px;">
+  <!-- Header Section -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h1 style="font-weight: 800; font-size: 24px; margin: 0; color: var(--text);">Leads</h1>
+        <span style="background: rgba(212, 0, 0, 0.08); color: var(--accent); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">{{ counts.leads }}</span>
+      </div>
+      <p style="font-size: 13px; color: var(--muted); margin: 4px 0 0 0;">
+        Manage prospects, target accounts, and strategic competitors extracted from scraper runs.
+      </p>
+    </div>
+    <div>
+      <a href="{% url 'prospect_pulse:prospect_pulse_detail' pulse.uid %}" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        Back to Pulse
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Cards Row -->
+  <div class="row g-4 mb-4">
+    <!-- Card 1: Leads -->
+    <div class="col-md-4">
+      <div class="detail-card" style="border-left: 4px solid var(--accent); padding: 20px;">
+        <div style="font-size: 12px; color: var(--muted); text-transform: uppercase; font-weight: 700; tracking: 0.5px; display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          Leads
+        </div>
+        <div style="font-size: 32px; font-weight: 800; color: var(--text); line-height: 1;">{{ counts.leads }}</div>
+      </div>
+    </div>
+
+    <!-- Card 2: Companies -->
+    <div class="col-md-4">
+      <div class="detail-card" style="border-left: 4px solid var(--success); padding: 20px;">
+        <div style="font-size: 12px; color: var(--muted); text-transform: uppercase; font-weight: 700; tracking: 0.5px; display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 21h18M3 7v14M21 7v14M6 21V7a2 2 0 012-2h8a2 2 0 012 2v14" />
+          </svg>
+          Companies
+        </div>
+        <div style="font-size: 32px; font-weight: 800; color: var(--text); line-height: 1;">{{ counts.companies }}</div>
+      </div>
+    </div>
+
+    <!-- Card 3: Competitors -->
+    <div class="col-md-4">
+      <div class="detail-card" style="border-left: 4px solid var(--text); padding: 20px;">
+        <div style="font-size: 12px; color: var(--muted); text-transform: uppercase; font-weight: 700; tracking: 0.5px; display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          Competitors
+        </div>
+        <div style="font-size: 32px; font-weight: 800; color: var(--text); line-height: 1;">{{ counts.competitors }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <div style="border-bottom: 1px solid var(--border); margin-bottom: 24px; display: flex; gap: 16px;">
+    <button id="btn-leads" class="sub-nav-btn active" onclick="switchSubView('leads')" style="background: none; border: none; padding: 12px 4px; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 8px;">
+      Leads
+      <span style="background: rgba(220, 38, 38, 0.08); color: var(--accent); font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 10px;">{{ counts.leads }}</span>
+    </button>
+    <button id="btn-companies" class="sub-nav-btn" onclick="switchSubView('companies')" style="background: none; border: none; padding: 12px 4px; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 8px;">
+      Companies
+      <span style="background: rgba(34, 197, 94, 0.08); color: var(--success); font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 10px;">{{ counts.companies }}</span>
+    </button>
+    <button id="btn-competitors" class="sub-nav-btn" onclick="switchSubView('competitors')" style="background: none; border: none; padding: 12px 4px; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 8px;">
+      Competitors
+      <span style="background: rgba(0, 0, 0, 0.08); color: var(--text); font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 10px;">{{ counts.competitors }}</span>
+    </button>
+  </div>
+
+  <!-- Tab Panel: Leads -->
+  <div id="panel-leads" class="view-panel active">
+    <div class="detail-card">
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12.5px;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 700;">
+              <th style="padding: 12px 16px; width: 40px;"><input type="checkbox"></th>
+              <th style="padding: 12px 16px;">LEAD</th>
+              <th style="padding: 12px 16px;">ACCOUNT</th>
+              <th style="padding: 12px 16px;">EMAIL</th>
+              <th style="padding: 12px 16px;">PHONE</th>
+              <th style="padding: 12px 16px;">CAMPAIGN</th>
+              <th style="padding: 12px 16px; text-align: center;">SCORE</th>
+              <th style="padding: 12px 16px;">OWNER</th>
+              <th style="padding: 12px 16px; text-align: right;">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if leads %}
+              {% for lead in leads %}
+                <tr style="border-bottom: 1px solid var(--border); vertical-align: middle;">
+                  <td style="padding: 14px 16px;"><input type="checkbox"></td>
+                  <td style="padding: 14px 16px;">
+                    <div style="font-weight: 700; color: var(--accent);">{{ lead.name }}</div>
+                    {% if lead.designation %}
+                      <div style="font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 2px;">{{ lead.designation }}</div>
+                    {% endif %}
+                  </td>
+                  <td style="padding: 14px 16px; font-weight: 600; color: var(--text);">{{ lead.organization_name }}</td>
+                  <td style="padding: 14px 16px; color: var(--text);">{{ lead.email|default:'—' }}</td>
+                  <td style="padding: 14px 16px; color: var(--text);">{{ lead.phone|default:'—' }}</td>
+                  <td style="padding: 14px 16px;">
+                    <button class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 4px 10px; border-radius: 6px;">+ Add to Campaign</button>
+                  </td>
+                  <td style="padding: 14px 16px; text-align: center; font-weight: 800; color: var(--text);">
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                      <span>{{ lead.score }}</span>
+                      <div style="width: 60px; height: 4px; background: rgba(0, 0, 0, 0.06); border-radius: 2px; overflow: hidden;">
+                        <div style="width: {% widthratio lead.score 10 100 %}%; height: 100%; background: var(--accent); border-radius: 2px;"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style="padding: 14px 16px; color: var(--muted);">Neural Harshal</td>
+                  <td style="padding: 14px 16px; text-align: right;">
+                    <div style="display: inline-flex; gap: 8px;">
+                      <a href="#" style="color: var(--muted);"><i class="far fa-eye"></i></a>
+                      <a href="#" style="color: var(--muted);"><i class="far fa-edit"></i></a>
+                      <a href="#" style="color: var(--muted);"><i class="far fa-trash-alt"></i></a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="9" style="padding: 40px; text-align: center; color: var(--muted); font-style: italic;">
+                  No lead contacts extracted.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Panel: Companies -->
+  <div id="panel-companies" class="view-panel">
+    <div class="detail-card">
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12.5px;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 700;">
+              <th style="padding: 12px 16px;">COMPANY NAME</th>
+              <th style="padding: 12px 16px;">BUYING SIGNAL</th>
+              <th style="padding: 12px 16px;">REASON</th>
+              <th style="padding: 12px 16px; text-align: center; width: 100px;">CONFIDENCE</th>
+              <th style="padding: 12px 16px; text-align: right; width: 100px;">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if companies %}
+              {% for comp in companies %}
+                <tr style="border-bottom: 1px solid var(--border); vertical-align: middle;">
+                  <td style="padding: 14px 16px; font-weight: 700; color: var(--success);">{{ comp.name }}</td>
+                  <td style="padding: 14px 16px;">
+                    <span style="background: rgba(34, 197, 94, 0.08); color: var(--success); font-weight: 700; padding: 2px 8px; border-radius: 12px; font-size: 11px;">
+                      {{ comp.buying_signal|default:'Intent' }}
+                    </span>
+                  </td>
+                  <td style="padding: 14px 16px; color: var(--text); max-width: 400px;">{{ comp.reason }}</td>
+                  <td style="padding: 14px 16px; text-align: center; font-weight: 800; color: var(--text);">{{ comp.score }}%</td>
+                  <td style="padding: 14px 16px; text-align: right;">
+                    <div style="display: inline-flex; gap: 8px;">
+                      <a href="#" style="color: var(--muted);"><i class="far fa-eye"></i></a>
+                      <a href="#" style="color: var(--muted);"><i class="far fa-trash-alt"></i></a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" style="padding: 40px; text-align: center; color: var(--muted); font-style: italic;">
+                  No target companies mapped.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Panel: Competitors -->
+  <div id="panel-competitors" class="view-panel">
+    <div class="detail-card">
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 12.5px;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 700;">
+              <th style="padding: 12px 16px;">COMPETITOR NAME</th>
+              <th style="padding: 12px 16px;">SIGNAL</th>
+              <th style="padding: 12px 16px;">REASON</th>
+              <th style="padding: 12px 16px; text-align: right; width: 100px;">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if competitors %}
+              {% for comp in competitors %}
+                <tr style="border-bottom: 1px solid var(--border); vertical-align: middle;">
+                  <td style="padding: 14px 16px; font-weight: 700; color: var(--text);">{{ comp.name }}</td>
+                  <td style="padding: 14px 16px;">
+                    <span style="background: rgba(100, 116, 139, 0.08); color: var(--muted); font-weight: 700; padding: 2px 8px; border-radius: 12px; font-size: 11px;">
+                      {{ comp.buying_signal|default:'Competitor Mentioned' }}
+                    </span>
+                  </td>
+                  <td style="padding: 14px 16px; color: var(--text); max-width: 450px;">{{ comp.reason }}</td>
+                  <td style="padding: 14px 16px; text-align: right;">
+                    <div style="display: inline-flex; gap: 8px;">
+                      <a href="#" style="color: var(--muted);"><i class="far fa-eye"></i></a>
+                      <a href="#" style="color: var(--muted);"><i class="far fa-trash-alt"></i></a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="4" style="padding: 40px; text-align: center; color: var(--muted); font-style: italic;">
+                  No strategic competitors logged.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .sub-nav-btn {
+    border-bottom: 2px solid transparent !important;
+    transition: all 0.2s ease;
+  }
+  .sub-nav-btn.active {
+    border-bottom: 2px solid var(--accent) !important;
+    color: var(--text) !important;
+  }
+  .view-panel {
+    display: none;
+  }
+  .view-panel.active {
+    display: block;
+  }
+</style>
+
+<script>
+  function switchSubView(viewName) {
+    document.querySelectorAll('.sub-nav-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    const activeBtn = document.getElementById(`btn-${viewName}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    document.querySelectorAll('.view-panel').forEach(panel => {
+      panel.classList.remove('active');
+    });
+    const activePanel = document.getElementById(`panel-${viewName}`);
+    if (activePanel) activePanel.classList.add('active');
+  }
+</script>
+{% endblock %}

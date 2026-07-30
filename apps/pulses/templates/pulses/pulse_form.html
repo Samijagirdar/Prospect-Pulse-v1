@@ -1,0 +1,380 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block topbar_title %}{{ title }}{% endblock %}
+{% block topbar_sub %}
+  <a href="{% url 'prospect_pulse:prospect_pulse_list' %}" style="color:var(--muted);text-decoration:none;">Prospect Pulses</a>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;margin:0 4px;color:var(--muted);"><polyline points="9 18 15 12 9 6"/></svg>
+  {{ title }}
+{% endblock %}
+
+{% block content %}
+<div class="ll-hero">
+  <div class="ll-hero-glow"></div>
+  <div class="ll-hero-inner">
+    <div>
+      <div class="ll-hero-eyebrow"></div>
+      <h1 class="ll-hero-title">{{ title }}</h1>
+      <p class="ll-hero-sub"><a href="{% url 'prospect_pulse:prospect_pulse_list' %}" style="color:var(--muted);text-decoration:none;">Prospect Pulses</a>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;margin:0 4px;color:var(--muted);"><polyline points="9 18 15 12 9 6"/></svg>
+  {{ title }}</p>
+    </div>
+    <div class="ll-hero-actions">
+      
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">{{ title }}</div>
+      <div class="card-sub">Configure your prospect monitoring settings</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data" id="pulseForm"
+          action="?next={{ next_page|default:'detail' }}"
+          data-initial-input-type="{{ form.instance.input_type|default:''|escapejs }}">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+          {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+        </div>
+      {% endif %}
+
+      <!-- Row 1: Name + Frequency -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="{{ form.name.id_for_label }}" class="form-label">Pulse Name <span style="color:var(--accent);">*</span></label>
+            {% if form.name.errors %}
+              <input type="text" name="{{ form.name.name }}" class="form-control is-invalid"
+                     value="{{ form.name.value|default:'' }}" id="{{ form.name.id_for_label }}">
+              <div class="invalid-feedback">{{ form.name.errors.0 }}</div>
+            {% else %}
+              <input type="text" name="{{ form.name.name }}" class="form-control"
+                     value="{{ form.name.value|default:'' }}" id="{{ form.name.id_for_label }}" placeholder="e.g. Enterprise SaaS Discovery">
+            {% endif %}
+            <div class="form-text" style="font-size:11px;color:var(--muted);">Provide a recognizable name for this monitoring campaign.</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="{{ form.frequency.id_for_label }}" class="form-label">{{ form.frequency.label }}</label>
+            <select name="{{ form.frequency.name }}" class="form-select" id="{{ form.frequency.id_for_label }}">
+              {% for value, label in form.frequency.field.choices %}
+                <option value="{{ value }}" {% if form.frequency.value == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text" style="font-size:11px;color:var(--muted);">{{ form.frequency.help_text }}</div>
+            <div id="custom-days-container" class="mt-2" style="display:none;">
+              <label for="custom_days" class="form-label">Number of days</label>
+              <input type="number" name="custom_days" id="custom_days" class="form-control"
+                     min="1" value="{{ form.custom_days.value|default:'1' }}"
+                     {% if form.frequency.value != 'custom' %}disabled{% endif %}>
+              <div class="form-text" style="font-size:11px;color:var(--muted);">How often (in days) this pulse should run</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Dates -->
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="{{ form.start_date.id_for_label }}" class="form-label">{{ form.start_date.label }}</label>
+            {{ form.start_date }}
+            {% if form.start_date.errors %}
+              <div class="invalid-feedback d-block">{{ form.start_date.errors.0 }}</div>
+            {% endif %}
+            <div class="form-text" style="font-size:11px;color:var(--muted);">{{ form.start_date.help_text }}</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="{{ form.end_date.id_for_label }}" class="form-label">{{ form.end_date.label }}</label>
+            {{ form.end_date }}
+            {% if form.end_date.errors %}
+              <div class="invalid-feedback d-block">{{ form.end_date.errors.0 }}</div>
+            {% endif %}
+            <div class="form-text" style="font-size:11px;color:var(--muted);">{{ form.end_date.help_text }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Competitors (Optional) -->
+      <div class="card mb-3" style="border:1px solid var(--border);box-shadow:none;animation:none;">
+        <div class="card-header" style="padding:12px 16px;">
+          <div class="card-title">Competitors</div>
+          <div class="card-sub">Identify main competitors to filter discovery intent signals (optional)</div>
+        </div>
+        <div class="card-body">
+          <div class="mb-0">
+            <label for="{{ form.competitors.id_for_label }}" class="form-label">Search Competitors</label>
+            {{ form.competitors }}
+            <div class="form-text" style="font-size:11px;color:var(--muted);">Enter competitor names separated by commas (e.g. CompetitorA, CompetitorB)</div>
+            {% if form.competitors.errors %}
+              <div class="invalid-feedback d-block">{{ form.competitors.errors.0 }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Source -->
+      <div class="card mb-3" style="border:1px solid var(--border);box-shadow:none;animation:none;">
+        <div class="card-header" style="padding:12px 16px;">
+          <div class="card-title">Content Source</div>
+          <div class="card-sub">Choose exactly one source layout to extract the customer profile from</div>
+        </div>
+        <div class="card-body">
+          <!-- Input Type Selector -->
+          <div class="mb-4">
+            <label class="form-label">Select Input Type <span style="color:var(--accent);">*</span></label>
+            {% if form.instance.pk %}
+              <div class="row row-cols-1 row-cols-sm-4 g-3 mb-2">
+                <div class="col">
+                  <div class="form-check border rounded p-3 h-100 {% if form.instance.input_type == 'pdf' %}border-primary bg-light{% endif %}">
+                    <input type="radio" id="input_type_pdf" name="input_type" value="pdf"
+                           {% if form.instance.input_type == 'pdf' %}checked{% endif %} class="form-check-input" disabled>
+                    <label for="input_type_pdf" class="form-check-label ms-2 fw-medium {% if form.instance.input_type == 'pdf' %}text-primary{% endif %}">PDF File</label>
+                    {% if form.instance.input_type == 'pdf' %}<div class="mt-2 small text-muted">Cannot be changed</div>{% endif %}
+                  </div>
+                </div>
+                <div class="col">
+                  <div class="form-check border rounded p-3 h-100 {% if form.instance.input_type == 'url' %}border-primary bg-light{% endif %}">
+                    <input type="radio" id="input_type_url" name="input_type" value="url"
+                           {% if form.instance.input_type == 'url' %}checked{% endif %} class="form-check-input" disabled>
+                    <label for="input_type_url" class="form-check-label ms-2 fw-medium {% if form.instance.input_type == 'url' %}text-primary{% endif %}">Web URL</label>
+                    {% if form.instance.input_type == 'url' %}<div class="mt-2 small text-muted">Cannot be changed</div>{% endif %}
+                  </div>
+                </div>
+                <div class="col">
+                  <div class="form-check border rounded p-3 h-100 {% if form.instance.input_type == 'text' %}border-primary bg-light{% endif %}">
+                    <input type="radio" id="input_type_text" name="input_type" value="text"
+                           {% if form.instance.input_type == 'text' %}checked{% endif %} class="form-check-input" disabled>
+                    <label for="input_type_text" class="form-check-label ms-2 fw-medium {% if form.instance.input_type == 'text' %}text-primary{% endif %}">Manual Text</label>
+                    {% if form.instance.input_type == 'text' %}<div class="mt-2 small text-muted">Cannot be changed</div>{% endif %}
+                  </div>
+                </div>
+                <div class="col">
+                  <div class="form-check border rounded p-3 h-100 {% if form.instance.input_type == 'icp' %}border-primary bg-light{% endif %}">
+                    <input type="radio" id="input_type_icp" name="input_type" value="icp"
+                           {% if form.instance.input_type == 'icp' %}checked{% endif %} class="form-check-input" disabled>
+                    <label for="input_type_icp" class="form-check-label ms-2 fw-medium {% if form.instance.input_type == 'icp' %}text-primary{% endif %}">Existing ICP</label>
+                    {% if form.instance.input_type == 'icp' %}<div class="mt-2 small text-muted">Cannot be changed</div>{% endif %}
+                  </div>
+                </div>
+              </div>
+              <input type="hidden" name="input_type" value="{{ form.instance.input_type }}">
+            {% else %}
+              <div class="row row-cols-1 row-cols-sm-4 g-3 mb-2">
+                {% for choice in form.input_type %}
+                  <div class="col">
+                    <div class="form-check border rounded p-3 h-100">
+                      {{ choice.tag }}
+                      <label for="{{ choice.id_for_label }}" class="form-check-label ms-2 fw-medium">{{ choice.choice_label }}</label>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% if form.input_type.errors %}
+              <div class="invalid-feedback d-block">{{ form.input_type.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Existing ICP Select Dropdown -->
+          <div id="icp-select" class="mb-3" style="display:none;">
+            <label for="{{ form.from_document.id_for_label }}" class="form-label">Select Proposal Document (ICP) <span style="color:var(--accent);">*</span></label>
+            {{ form.from_document }}
+            {% if form.from_document.errors %}
+              <div class="invalid-feedback d-block">{{ form.from_document.errors.0 }}</div>
+            {% endif %}
+            <div class="form-text" style="font-size:11px;color:var(--muted);">Select a proposal. Its details will be extracted and prefilled inside the Content Area below.</div>
+          </div>
+
+          <!-- PDF Upload -->
+          <div id="pdf-upload" class="mb-3" style="display:none;">
+            <label class="form-label">PDF File <span style="color:var(--accent);">*</span></label>
+            {% if form.instance.pk and form.instance.pdf_file %}
+              <div class="alert alert-info" style="font-size:13px;">
+                <i class="fas fa-file-pdf me-2"></i>{{ form.instance.pdf_file.name|default:'' }}
+              </div>
+            {% else %}
+              <div class="input-group">
+                {{ form.pdf_file }}
+              </div>
+            {% endif %}
+            {% if form.pdf_file.errors %}
+              <div class="invalid-feedback d-block">{{ form.pdf_file.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <!-- URL Field -->
+          <div id="url-input" class="mb-3" style="display:none;">
+            <label for="{{ form.url.id_for_label }}" class="form-label">URL <span style="color:var(--accent);">*</span></label>
+            {{ form.url }}
+            {% if form.instance.pk and form.instance.url %}
+              <div class="mt-2">
+                <a href="{{ form.instance.url }}" target="_blank" class="btn btn-sm btn-secondary">
+                  <i class="fas fa-external-link-alt me-1"></i> Open URL
+                </a>
+              </div>
+            {% endif %}
+            {% if form.url.errors %}
+              <div class="invalid-feedback d-block">{{ form.url.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+          <!-- Text Content -->
+          <div id="text-content" class="mb-3" style="display:none;">
+            <label for="{{ form.text_content.id_for_label }}" class="form-label" id="content-label">Content Description <span style="color:var(--accent);">*</span></label>
+            {{ form.text_content }}
+            {% if form.instance.pk and form.instance.text_content %}
+              <div class="form-text" style="font-size:11px;color:var(--muted);">Content is read-only in edit mode</div>
+            {% endif %}
+            {% if form.text_content.errors %}
+              <div class="invalid-feedback d-block">{{ form.text_content.errors.0 }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:4px;">
+        {% if next_page == 'detail' %}
+        <a href="{% url 'prospect_pulse:prospect_pulse_detail' pulse_id %}" class="btn btn-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to Details
+        </a>
+        {% else %}
+        <a href="{% url 'prospect_pulse:prospect_pulse_list' %}" class="btn btn-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to List
+        </a>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          {% if form.instance.pk %}Edit Pulse{% else %}Create Pulse{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function() {
+    function toggleInputFields() {
+      var inputType = document.querySelector('input[name="input_type"]:checked');
+      var val = inputType ? inputType.value : '';
+      document.getElementById('pdf-upload').style.display  = val === 'pdf'  ? 'block' : 'none';
+      document.getElementById('url-input').style.display   = val === 'url'  ? 'block' : 'none';
+      
+      // Toggle ICP select dropdown visibility
+      document.getElementById('icp-select').style.display   = val === 'icp'  ? 'block' : 'none';
+      
+      // Show text content for either manual text OR existing ICP previews
+      document.getElementById('text-content').style.display = (val === 'text' || val === 'icp') ? 'block' : 'none';
+      
+      var contentLabel = document.getElementById('content-label');
+      if (contentLabel) {
+        contentLabel.innerHTML = val === 'icp' ? 'Extracted ICP Content Preview <span style="color:var(--accent);">*</span>' : 'Content Description <span style="color:var(--accent);">*</span>';
+      }
+    }
+
+    var initialInputType = document.getElementById('pulseForm').dataset.initialInputType;
+    if (initialInputType) {
+      var radio = document.querySelector('input[name="input_type"][value="' + initialInputType + '"]');
+      if (radio) radio.checked = true;
+    }
+    toggleInputFields();
+
+    document.querySelectorAll('input[name="input_type"]').forEach(function(r) {
+      r.addEventListener('change', toggleInputFields);
+    });
+
+    // Proposal ICP extraction logic
+    var docSelect = document.getElementById('id_from_document');
+    if (docSelect) {
+      docSelect.addEventListener('change', function() {
+        var docId = this.value;
+        if (!docId) return;
+        
+        fetch('/pulses/documents/' + docId + '/extract/')
+          .then(response => response.json())
+          .then(data => {
+            if (data.profile_text) {
+              var textContentArea = document.getElementById('{{ form.text_content.id_for_label }}');
+              if (textContentArea) {
+                textContentArea.value = data.profile_text;
+              }
+            }
+          })
+          .catch(err => console.error("Error extracting profile details:", err));
+      });
+    }
+
+    function toggleCustomDays() {
+      var freqEl = document.getElementById('{{ form.frequency.id_for_label }}');
+      if (!freqEl) return;
+      var container = document.getElementById('custom-days-container');
+      var input = document.getElementById('custom_days');
+      if (freqEl.value === 'custom') {
+        container.style.display = 'block';
+        input.disabled = false;
+      } else {
+        container.style.display = 'none';
+        input.disabled = true;
+      }
+    }
+
+    var freqEl = document.getElementById('{{ form.frequency.id_for_label }}');
+    if (freqEl) {
+      toggleCustomDays();
+      freqEl.addEventListener('change', toggleCustomDays);
+    }
+
+    document.getElementById('pulseForm').addEventListener('submit', function(e) {
+      // Re-enable disabled fields before submit
+      this.querySelectorAll('input[disabled], select[disabled], textarea[disabled]').forEach(function(el) {
+        el.disabled = false;
+      });
+
+      var startInput = document.getElementById('{{ form.start_date.id_for_label }}');
+      var endInput   = document.getElementById('{{ form.end_date.id_for_label }}');
+      var today = new Date(); today.setHours(0,0,0,0);
+
+      if (startInput && startInput.value) {
+        var startDate = new Date(startInput.value);
+        if (startDate < today) {
+          alert('Start date cannot be in the past'); startInput.focus(); e.preventDefault(); return;
+        }
+        if (endInput && endInput.value) {
+          var endDate = new Date(endInput.value);
+          if (endDate < startDate) {
+            alert('End date cannot be before start date'); endInput.focus(); e.preventDefault(); return;
+          }
+        }
+      }
+
+      if (freqEl && freqEl.value === 'custom') {
+        var customDays = parseInt(document.getElementById('custom_days').value);
+        if (isNaN(customDays) || customDays < 1) {
+          alert('Please enter a valid number of days (1 or more)');
+          document.getElementById('custom_days').focus();
+          e.preventDefault();
+        }
+      }
+    });
+  })();
+</script>
+{% endblock %}

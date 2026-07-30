@@ -1,0 +1,162 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}Prospect Pulses{% endblock %}
+
+{% block topbar_title %}Prospect Pulses{% endblock %}
+{% block topbar_sub %}Track and monitor your prospect engagement pulses{% endblock %}
+
+
+{% block content %}
+<div class="ll-hero">
+  <div class="ll-hero-glow"></div>
+  <div class="ll-hero-inner">
+    <div>
+      <div class="ll-hero-eyebrow"></div>
+      <h1 class="ll-hero-title">Prospect Pulses</h1>
+      <p class="ll-hero-sub">Track and monitor your prospect engagement pulses</p>
+    </div>
+    <div class="ll-hero-actions">
+      <a href="{% url 'prospect_pulse:prospect_pulse_create' %}" class="btn btn-primary btn-sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Create New Pulse
+      </a>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">My Pulses</div>
+      <div class="card-sub">Active prospect tracking configurations</div>
+    </div>
+  </div>
+
+  {% if pulses %}
+  <div style="overflow-x:auto;">
+    <table class="mini-table" id="pulsesTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Frequency</th>
+          <th>Start Date</th>
+          <th>End Date</th>
+          <th>Status</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pulse in pulses %}
+        <tr>
+          <td style="font-weight:600;">{{ pulse.name }}</td>
+          <td style="color:var(--muted);">{{ pulse.get_input_type_display }}</td>
+          <td style="color:var(--muted);">{{ pulse.get_frequency_display }}</td>
+          <td style="color:var(--muted);">{{ pulse.start_date|date:"M d, Y" }}</td>
+          <td style="color:var(--muted);">{{ pulse.end_date|date:"M d, Y"|default:"—" }}</td>
+          <td>
+            {% if pulse.is_active %}
+              <span class="status-badge success">Active</span>
+            {% else %}
+              <span class="status-badge" style="background:var(--surface2);color:var(--muted);border:1px solid var(--border);">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex;justify-content:flex-end;gap:5px;">
+              <a href="{% url 'prospect_pulse:prospect_pulse_detail' pulse.uid %}" class="btn btn-secondary btn-sm" title="View">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </a>
+              <a href="{% url 'prospect_pulse:prospect_pulse_edit' pulse.uid %}?next=list" class="btn btn-secondary btn-sm" title="Edit">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </a>
+              <button type="button"
+                class="btn btn-sm"
+                style="color:var(--accent);border:1px solid rgba(212,0,0,0.2);background:var(--danger-bg);"
+                onclick="document.getElementById('customDeleteModal{{ pulse.id }}').style.display='flex';"
+                title="Delete">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if pulses.has_other_pages %}
+  <div style="padding:14px 20px;border-top:1px solid var(--border);">
+    <ul class="pagination justify-content-center" style="margin:0;">
+      {% if pulses.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page=1">&laquo;&laquo;</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ pulses.previous_page_number }}">&laquo;</a></li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&laquo;&laquo;</span></li>
+        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+      {% endif %}
+      {% for i in pulses.paginator.page_range %}
+        {% if pulses.number == i %}
+          <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+        {% else %}
+          <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+        {% endif %}
+      {% endfor %}
+      {% if pulses.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ pulses.next_page_number }}">&raquo;</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ pulses.paginator.num_pages }}">&raquo;&raquo;</a></li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        <li class="page-item disabled"><span class="page-link">&raquo;&raquo;</span></li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div style="padding:56px 20px;text-align:center;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;border:1px solid var(--border);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5" style="width:24px;height:24px;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:4px;">No Prospect Pulses Yet</div>
+        <div style="font-size:12.5px;color:var(--muted);">Create your first pulse to start tracking prospects</div>
+      </div>
+      <a href="{% url 'prospect_pulse:prospect_pulse_create' %}" class="btn btn-primary btn-sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Create New Pulse
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Custom Confirm Modals -->
+  {% if pulses %}
+    {% for pulse in pulses %}
+      <div id="customDeleteModal{{ pulse.id }}" class="custom-confirm-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(6px); z-index:10000; align-items:center; justify-content:center;">
+        <div class="custom-confirm-box" style="background:var(--surface); border:1px solid var(--border); border-radius:12px; max-width:400px; width:90%; padding:24px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.4); text-align:left;">
+          <h4 style="font-weight:700; font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="width:18px;height:18px;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Confirm Deletion
+          </h4>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:20px; line-height:1.5;">
+            Are you sure you want to delete <strong>{{ pulse.name }}</strong>? This action cannot be undone.
+          </p>
+          <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('customDeleteModal{{ pulse.id }}').style.display='none';" style="padding:8px 14px;">Cancel</button>
+            <form action="{% url 'prospect_pulse:prospect_pulse_delete' pulse.uid %}" method="post" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm" style="background:var(--accent); border-color:var(--accent); color:#fff; padding:8px 14px;">Delete</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

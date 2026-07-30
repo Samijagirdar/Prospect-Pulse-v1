@@ -1,0 +1,257 @@
+import os
+import json
+import re
+import numpy as np
+
+# Safe import of Google GenAI SDK
+try:
+    from google import genai as google_genai
+    from google.genai import types as genai_types
+    GOOGLE_GENAI_AVAILABLE = True
+except ImportError:
+    google_genai = None
+    genai_types = None
+    GOOGLE_GENAI_AVAILABLE = False
+
+# Safe import of SentenceTransformer
+try:
+    from sentence_transformers import SentenceTransformer
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    SentenceTransformer = None
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
+
+# Force transformers to run in local/offline mode
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+
+# Initialize SentenceTransformer for cheap local pre-filtering
+try:
+    if SentenceTransformer:
+        embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+    else:
+        embedding_model = None
+except Exception as e:
+    print(f"Warning: Failed to load local SentenceTransformer: {e}")
+    embedding_model = None
+
+
+def pre_filter_check(text, target_focus):
+    """
+    Cheap pre-filter check:
+    Compute cosine similarity between article text and target focus.
+    Returns: (passes_pre_filter: bool, similarity_score: float)
+    """
+    if not embedding_model or not target_focus or not text:
+        return True, 0.5  # Bypassed if model or inputs missing
+
+    try:
+        focus_emb = embedding_model.encode(target_focus)
+        text_emb = embedding_model.encode(text)
+        dot = np.dot(focus_emb, text_emb)
+        norm_focus = np.linalg.norm(focus_emb)
+        norm_text = np.linalg.norm(text_emb)
+        similarity = dot / (norm_focus * norm_text) if norm_focus and norm_text else 0.0
+
+        # Threshold set to very loose (0.15) to catch obvious spam/junk
+        return (similarity >= 0.15), float(similarity)
+    except Exception as e:
+        print(f"Pre-filter exception: {e}")
+        return True, 0.5
+
+
+# Create the client ONCE at module load, not per-call
+_client = None
+
+def _get_client():
+    global _client
+    if _client is not None:
+        return _client
+    if not GOOGLE_GENAI_AVAILABLE:
+        raise ImportError("google-genai package is not installed.")
+    api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("Google API key is not configured. Add GOOGLE_API_KEY to your environment.")
+    _client = google_genai.Client(api_key=api_key)
+    return _client
+
+
+def clean_and_parse_json(text):
+    """
+    Robustly parses JSON from LLM text responses, handling markdown code blocks,
+    trailing text/commentary, trailing commas, and unescaped strings.
+    """
+    if not text:
+        raise ValueError("Empty response text from LLM")
+
+    cleaned = text.strip()
+
+    # Strip markdown code blocks
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+        cleaned = cleaned.strip()
+
+    # Extract outermost JSON object { ... }
+    match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+    if match:
+        json_candidate = match.group(0)
+    else:
+        json_candidate = cleaned
+
+    # Try standard JSON parsing
+    try:
+        return json.loads(json_candidate)
+    except json.JSONDecodeError:
+        pass
+
+    # Fix trailing commas
+    json_candidate_fixed = re.sub(r',\s*([\}\]])', r'\1', json_candidate)
+    try:
+        return json.loads(json_candidate_fixed)
+    except json.JSONDecodeError:
+        pass
+
+    # RegEx field extraction fallback
+    category_match = re.search(r'"category"\s*:\s*"([^"]+)"', json_candidate, re.IGNORECASE)
+    buying_signal_match = re.search(r'"buying_signal"\s*:\s*("([^"]+)"|null)', json_candidate, re.IGNORECASE)
+    score_match = re.search(r'"relevance_score"\s*:\s*(\d+)', json_candidate, re.IGNORECASE)
+    reason_match = re.search(r'"reason"\s*:\s*"([^"]+)"', json_candidate, re.IGNORECASE)
+
+    if category_match:
+        cat_val = category_match.group(1).strip()
+        sig_val = None
+        if buying_signal_match:
+            raw_sig = buying_signal_match.group(1).strip()
+            if raw_sig != "null" and raw_sig != 'null':
+                sig_val = raw_sig.strip('"')
+        score_val = int(score_match.group(1)) if score_match else 50
+        reason_val = reason_match.group(1) if reason_match else "Extracted from LLM response."
+
+        return {
+            "category": cat_val,
+            "buying_signal": sig_val,
+            "relevance_score": score_val,
+            "reason": reason_val
+        }
+
+    raise ValueError(f"Unable to parse valid JSON from LLM response: {text[:200]}")
+
+
+def classify_article(title, description, query_focus, query_keyword, source, pulse):
+    """
+    Main entry point for classifying an article using Gemini LLM.
+    Guarantees every article is evaluated by LLM and captures input/output/total token metadata.
+    Returns a dict containing classification, scoring, signal, reasoning, and token counts.
+    """
+    full_text = f"{title or ''} {description or ''}"
+
+    # Log pre-filter similarity for audit, but do not bypass LLM classification
+    _, similarity = pre_filter_check(full_text, query_focus)
+
+    # Fetch pulse-scoped buying signal definitions
+    buying_signals = pulse.buying_signals_rel.all()
+    if buying_signals.exists():
+        actionable_text = "\n".join([f"- {sig.signal_name} (Category: {sig.category})" for sig in buying_signals])
+    else:
+        # Fallback default definitions if none configured on the pulse
+        actionable_text = """
+- Technology Adoption or Migration: Deploying new software, cloud infrastructure, security frameworks.
+- Leadership Changes: C-suite hires, hiring SDRs, new VP appointments.
+- Business Milestones: Raising Series A/B funding, expansion into new markets, launching new products.
+"""
+
+    # Generic noise definitions
+    noise_text = """
+- Socio-Political & Public Sector Policies: Geopolitical news, government mandates without commercial B2B purchasing intent.
+- Thought Leadership / General Blog Post: Tutorials, opinions, threats briefs without specific targeted company intent.
+- Career & Tutorial Guides: Jobs listings, tutorials, educational advice.
+- Macro-Economic Updates: General stock market or economy updates.
+"""
+
+    prompt = f"""
+You are an expert B2B relevance classification engine. Your task is to judge whether a scraped news article represents a real buying signal/intent for sales representatives or represents irrelevant noise/thought leadership.
+
+**ARTICLE DETAILS**:
+- Title: {title}
+- Description: {description}
+- Search query keyword context: {query_keyword}
+- Intended focus area: {query_focus}
+- Publisher/Source: {source}
+
+**CLASSIFICATION CATEGORIES**:
+Below are the valid categories. You MUST match the article against these categories:
+
+### Actionable B2B Buying Signals:
+{actionable_text}
+
+### Filtered Noise Categories:
+{noise_text}
+
+**INSTRUCTIONS**:
+1. Classify the article into either "actionable" or "noise" based on the definitions above.
+2. If it is "actionable", match it to the single most relevant "buying_signal" name from the list. If it is "noise", set "buying_signal" to null.
+3. Assign a "relevance_score" (integer between 0 and 100) indicating confidence and relevance quality.
+4. Provide a clear, one-sentence "reason" for your choice. Avoid double quotes or newline characters inside the reason sentence.
+5. Return ONLY a valid, single JSON object with NO markdown formatting, NO backticks, and NO trailing text outside the JSON object.
+Structure:
+{{
+  "category": "actionable" | "noise",
+  "buying_signal": "Name of matched signal" | null,
+  "relevance_score": 0-100,
+  "reason": "explanation text"
+}}
+"""
+
+    try:
+        client = _get_client()
+        model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
+        except Exception as model_err:
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
+
+        res_json = clean_and_parse_json(response.text)
+
+        category = res_json.get("category", "noise")
+        buying_signal = res_json.get("buying_signal")
+        score = int(res_json.get("relevance_score", 0))
+        reason = res_json.get("reason", "Classified by LLM.")
+
+        is_relevant = 1 if category == "actionable" else 0
+
+        # Extract token usage metadata
+        prompt_tokens = 0
+        completion_tokens = 0
+        total_tokens = 0
+        if hasattr(response, 'usage_metadata') and response.usage_metadata:
+            prompt_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0) or 0
+            completion_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0) or 0
+            total_tokens = getattr(response.usage_metadata, 'total_token_count', 0) or (prompt_tokens + completion_tokens)
+
+        return {
+            "is_relevant": is_relevant,
+            "relevance_score": score,
+            "buying_signal": buying_signal,
+            "relevance_tier": category,
+            "reason": reason,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens
+        }
+    except Exception as e:
+        print(f"Gemini API invocation error: {e}")
+        raise e
