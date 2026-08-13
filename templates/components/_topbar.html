@@ -8,6 +8,46 @@
     {% block topbar_actions %}{% endblock %}
     {% block topbar_extra %}{% endblock %}
 
+    <!-- Notification Dropdown -->
+    <div class="dropdown notification-dropdown" style="position:relative; margin-right: 10px;">
+      <button class="notification-btn" id="notificationBtn" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+        </svg>
+        {% if unread_notifications_count > 0 %}
+          <span class="notification-badge" id="notificationBadge">{{ unread_notifications_count }}</span>
+        {% endif %}
+      </button>
+      
+      <div class="notification-panel" id="notificationPanel">
+        <div class="notification-header">
+          <span>Notifications</span>
+          {% if unread_notifications_count > 0 %}
+            <button class="mark-all-read-btn" id="markAllReadBtn" onclick="markAllNotificationsAsRead(event)">Mark all as read</button>
+          {% endif %}
+        </div>
+        <div class="notification-list">
+          {% if global_notifications %}
+            {% for note in global_notifications %}
+              <div class="notification-item {% if not note.is_read %}unread{% endif %}">
+                <div class="notification-item-content">
+                  <p class="notification-message">{{ note.message }}</p>
+                  <span class="notification-time">{{ note.created_at|date:"M d, Y H:i" }}</span>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="notification-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 28px; height: 28px; color: var(--muted); margin-bottom: 8px; display: inline-block;">
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+              </svg>
+              <p>All caught up!</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
     <!-- User profile dropdown -->
     <div class="dropdown" style="position:relative;">
       <button class="user-card"
@@ -23,3 +63,179 @@
     </div>
   </div>
 </div>
+
+<style>
+.notification-btn {
+  border: 1px solid var(--border);
+  background: white;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.2s ease;
+  color: var(--text);
+  padding: 0;
+}
+
+.notification-btn:hover {
+  background: var(--surface);
+  border-color: rgba(0,0,0,0.15);
+  box-shadow: var(--shadow-sm);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #d40000;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border: 1.5px solid white;
+}
+
+.notification-panel {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 44px;
+  width: 320px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  overflow: hidden;
+  animation: fadeUp 0.15s ease-out;
+}
+
+.notification-panel.show {
+  display: block;
+}
+
+.notification-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.mark-all-read-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mark-all-read-btn:hover {
+  text-decoration: underline;
+}
+
+.notification-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
+  text-align: left;
+}
+
+.notification-item:hover {
+  background: var(--surface);
+}
+
+.notification-item.unread {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.notification-message {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text);
+  margin: 0 0 4px 0;
+}
+
+.notification-time {
+  font-size: 10px;
+  color: var(--muted);
+  display: block;
+}
+
+.notification-empty {
+  padding: 24px 14px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.notification-empty p {
+  margin: 0;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('notificationBtn');
+  const panel = document.getElementById('notificationPanel');
+  
+  if (btn && panel) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      panel.classList.toggle('show');
+    });
+    
+    document.addEventListener('click', function(e) {
+      if (!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+        panel.classList.remove('show');
+      }
+    });
+  }
+});
+
+function markAllNotificationsAsRead(e) {
+  e.stopPropagation();
+  fetch("/discovery/notifications/mark-read/", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      const badge = document.getElementById('notificationBadge');
+      if (badge) badge.style.display = 'none';
+      
+      document.querySelectorAll('.notification-item.unread').forEach(item => {
+        item.classList.remove('unread');
+      });
+      
+      const markBtn = document.getElementById('markAllReadBtn');
+      if (markBtn) markBtn.style.display = 'none';
+    }
+  })
+  .catch(err => console.error("Error marking notifications read:", err));
+}
+</script>

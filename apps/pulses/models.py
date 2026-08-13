@@ -209,3 +209,5 @@ class BuyingSignal(models.Model):
 
     def __str__(self):
         return f"{self.signal_name} ({self.category})"
+
+

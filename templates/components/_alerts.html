@@ -18,3 +18,23 @@
   {% endfor %}
 </div>
 {% endif %}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+      document.querySelectorAll('.alert').forEach(function(alertEl) {
+        alertEl.style.transition = 'opacity 0.6s ease, max-height 0.4s ease, margin 0.4s ease, padding 0.4s ease';
+        alertEl.style.opacity = '0';
+        alertEl.style.maxHeight = '0';
+        alertEl.style.paddingTop = '0';
+        alertEl.style.paddingBottom = '0';
+        alertEl.style.marginTop = '0';
+        alertEl.style.marginBottom = '0';
+        alertEl.style.border = 'none';
+        setTimeout(function() {
+          alertEl.remove();
+        }, 600);
+      });
+    }, 5000);
+  });
+</script>

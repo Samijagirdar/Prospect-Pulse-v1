@@ -1,4 +1,7 @@
 import json
+import logging
+
+logger = logging.getLogger('django.request')
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
@@ -64,24 +67,35 @@ def pulse_create(request):
                     file = request.FILES['pdf_file']
                     pdf_path = default_storage.save(f"prospect_pulse/pdfs/{file.name}", file)
 
-                pulse_id = pulse_service.create_pulse_config(
-                    org_id=org.id,
-                    name=data['name'],
-                    frequency=data['frequency'],
-                    custom_days=data['custom_days'],
-                    start_date=data['start_date'],
-                    end_date=data['end_date'],
-                    input_type=data['input_type'],
-                    pdf_file=pdf_path,
-                    url=data['url'],
-                    text_content=data['text_content'],
-                    from_document_id=int(data['from_document']) if data['from_document'] else None,
-                    competitors=data['competitors']
-                )
-
-                pulse = Pulse.objects.get(id=pulse_id)
-                messages.success(request, f"Pulse '{data['name']}' created successfully.")
-                return redirect('prospect_pulse:prospect_pulse_detail', pk=pulse.uid)
+                from django.db import transaction
+                try:
+                    with transaction.atomic():
+                        pulse_id = pulse_service.create_pulse_config(
+                            org_id=org.id,
+                            name=data['name'],
+                            frequency=data['frequency'],
+                            custom_days=data['custom_days'],
+                            start_date=data['start_date'],
+                            end_date=data['end_date'],
+                            input_type=data['input_type'],
+                            pdf_file=pdf_path,
+                            url=data['url'],
+                            text_content=data['text_content'],
+                            from_document_id=int(data['from_document']) if data['from_document'] else None,
+                            competitors=data['competitors']
+                        )
+                    pulse = Pulse.objects.get(id=pulse_id)
+                    messages.success(request, f"Pulse '{data['name']}' created successfully.")
+                    return redirect('prospect_pulse:prospect_pulse_detail', pk=pulse.uid)
+                except Exception as e:
+                    logger.error(f"Error creating pulse: {e}", exc_info=True)
+                    error_msg = str(e)
+                    if "Unable to parse valid JSON from LLM" in error_msg:
+                        messages.error(request, "Failed to run GTM enrichment: AI returned an invalid response format. Please try again.")
+                    elif any(keyword in error_msg for keyword in ["RESOURCE_EXHAUSTED", "quota", "spending cap", "429"]):
+                        messages.error(request, "Failed to run GTM enrichment: Gemini API quota exceeded. Please verify your billing/credits.")
+                    else:
+                        messages.error(request, f"Error creating pulse: {error_msg}")
         else:
             form = ProspectPulseForm(organisation=org)
             
@@ -117,25 +131,35 @@ def pulse_edit(request, pk):
                     file = request.FILES['pdf_file']
                     pdf_path = default_storage.save(f"prospect_pulse/pdfs/{file.name}", file)
                     
-                pulse_service.update_pulse_config(
-                    pulse_id=pulse.id,
-                    name=data['name'],
-                    frequency=data['frequency'],
-                    custom_days=data['custom_days'],
-                    start_date=data['start_date'],
-                    end_date=data['end_date'],
-                    input_type=data['input_type'],
-                    pdf_file=pdf_path,
-                    url=data['url'],
-                    text_content=data['text_content'],
-                    from_document_id=int(data['from_document']) if data['from_document'] else None,
-                    competitors=data['competitors']
-                )
-                
-                messages.success(request, f"Pulse '{data['name']}' updated successfully.")
-                if next_page == 'list':
-                    return redirect('prospect_pulse:prospect_pulse_list')
-                return redirect('prospect_pulse:prospect_pulse_detail', pk=pk)
+                try:
+                    pulse_service.update_pulse_config(
+                        pulse_id=pulse.id,
+                        name=data['name'],
+                        frequency=data['frequency'],
+                        custom_days=data['custom_days'],
+                        start_date=data['start_date'],
+                        end_date=data['end_date'],
+                        input_type=data['input_type'],
+                        pdf_file=pdf_path,
+                        url=data['url'],
+                        text_content=data['text_content'],
+                        from_document_id=int(data['from_document']) if data['from_document'] else None,
+                        competitors=data['competitors']
+                    )
+                    
+                    messages.success(request, f"Pulse '{data['name']}' updated successfully.")
+                    if next_page == 'list':
+                        return redirect('prospect_pulse:prospect_pulse_list')
+                    return redirect('prospect_pulse:prospect_pulse_detail', pk=pk)
+                except Exception as e:
+                    logger.error(f"Error updating pulse: {e}", exc_info=True)
+                    error_msg = str(e)
+                    if "Unable to parse valid JSON from LLM" in error_msg:
+                        messages.error(request, "Failed to run GTM enrichment: AI returned an invalid response format. Please try again.")
+                    elif any(keyword in error_msg for keyword in ["RESOURCE_EXHAUSTED", "quota", "spending cap", "429"]):
+                        messages.error(request, "Failed to run GTM enrichment: Gemini API quota exceeded. Please verify your billing/credits.")
+                    else:
+                        messages.error(request, f"Error updating pulse: {error_msg}")
         else:
             initial_data = {
                 'competitors': ", ".join(pulse.competitors_list),
@@ -245,10 +269,9 @@ def pulse_discover(request, pk):
     if not pulse:
         return HttpResponse("Pulse not found", status=404)
         
-    from apps.discovery.tasks import run_pulse_discovery
+    from apps.discovery.tasks import run_pulse_discovery_task
     from apps.discovery.models import DiscoveryRun
     from django.http import JsonResponse
-    import threading
     
     # Create the run record in the main request thread
     run = DiscoveryRun.objects.create(
@@ -257,22 +280,13 @@ def pulse_discover(request, pk):
         started_at=timezone.now()
     )
     
-    # Start the orchestrator in a background thread
-    def thread_target():
-        from django.db import connection
-        try:
-            run_pulse_discovery(pulse.id, run.id)
-        except Exception as e:
-            print(f"Background thread discovery failed: {e}")
-        finally:
-            connection.close()
-            
-    threading.Thread(target=thread_target).start()
+    # Trigger asynchronously via Celery
+    run_pulse_discovery_task.delay(pulse.id, run.id)
     
     return JsonResponse({
         'success': True,
         'run_id': run.id,
-        'message': 'Discovery campaign started in the background.'
+        'message': 'Discovery campaign started in Celery background worker.'
     })
 
 

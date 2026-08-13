@@ -9,3 +9,8 @@ asgiref==3.12.1
 sqlparse==0.5.5
 tzdata==2026.3
 numpy==2.5.1
+celery==5.4.0
+redis==5.0.8
+sqlalchemy>=2.0.0
+spacy>=3.7.0
+scikit-learn>=1.0.0

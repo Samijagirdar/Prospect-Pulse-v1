@@ -46,8 +46,8 @@ def pre_filter_check(text, target_focus):
         return True, 0.5  # Bypassed if model or inputs missing
 
     try:
-        focus_emb = embedding_model.encode(target_focus)
-        text_emb = embedding_model.encode(text)
+        focus_emb = embedding_model.encode(target_focus, show_progress_bar=False)
+        text_emb = embedding_model.encode(text, show_progress_bar=False)
         dot = np.dot(focus_emb, text_emb)
         norm_focus = np.linalg.norm(focus_emb)
         norm_text = np.linalg.norm(text_emb)
@@ -76,6 +76,149 @@ def _get_client():
     return _client
 
 
+def extract_json_by_matching_braces(text):
+    first_brace = text.find('{')
+    if first_brace == -1:
+        return text
+        
+    brace_count = 0
+    in_string = False
+    escape = False
+    
+    for i in range(first_brace, len(text)):
+        char = text[i]
+        
+        if escape:
+            escape = False
+            continue
+            
+        if char == '\\':
+            escape = True
+            continue
+            
+        if char == '"':
+            in_string = not in_string
+            continue
+            
+        if not in_string:
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    return text[first_brace:i+1]
+                    
+    return text[first_brace:]
+
+def repair_truncated_json(text):
+    """
+    Robustly repairs truncated or malformed JSON strings from LLMs.
+    Closes open quotes, strips trailing commas/incomplete keys, and closes open braces/brackets.
+    """
+    if not text:
+        return "{}"
+        
+    cleaned = text.strip()
+    
+    # Find first '{'
+    first_brace = cleaned.find('{')
+    if first_brace == -1:
+        return "{}"
+    
+    candidate = cleaned[first_brace:]
+    
+    # State tracking
+    stack = []
+    in_string = False
+    escape = False
+    i = 0
+    limit = len(candidate)
+    
+    while i < limit:
+        char = candidate[i]
+        
+        if escape:
+            escape = False
+            i += 1
+            continue
+            
+        if char == '\\':
+            escape = True
+            i += 1
+            continue
+            
+        if char == '"':
+            in_string = not in_string
+            i += 1
+            continue
+            
+        if not in_string:
+            if char == '{':
+                stack.append('{')
+            elif char == '[':
+                stack.append('[')
+            elif char == '}':
+                if stack and stack[-1] == '{':
+                    stack.pop()
+            elif char == ']':
+                if stack and stack[-1] == '[':
+                    stack.pop()
+        i += 1
+
+    # If we ended inside a string, close the quote
+    repaired = candidate
+    if in_string:
+        repaired += '"'
+        in_string = False
+        
+    # Strip any trailing whitespace
+    repaired = repaired.strip()
+    
+    # Loop to strip trailing invalid elements (commas, keys with colons but no values, etc.)
+    while True:
+        original = repaired
+        repaired = re.sub(r',\s*$', '', repaired)
+        repaired = re.sub(r'"[^"]*"\s*:\s*$', '', repaired)
+        repaired = re.sub(r',\s*$', '', repaired)
+        repaired = re.sub(r',\s*"[^"]*"\s*$', '', repaired)
+        if repaired == original:
+            break
+            
+    # Rebuild stack to close open brackets/braces accurately
+    final_stack = []
+    in_str = False
+    esc = False
+    for c in repaired:
+        if esc:
+            esc = False
+            continue
+        if c == '\\':
+            esc = True
+            continue
+        if c == '"':
+            in_str = not in_str
+            continue
+        if not in_str:
+            if c == '{':
+                final_stack.append('{')
+            elif c == '[':
+                final_stack.append('[')
+            elif c == '}':
+                if final_stack and final_stack[-1] == '{':
+                    final_stack.pop()
+            elif c == ']':
+                if final_stack and final_stack[-1] == '[':
+                    final_stack.pop()
+                    
+    # Close any open structures in reverse order
+    for sym in reversed(final_stack):
+        if sym == '{':
+            repaired += '}'
+        elif sym == '[':
+            repaired += ']'
+            
+    return repaired
+
 def clean_and_parse_json(text):
     """
     Robustly parses JSON from LLM text responses, handling markdown code blocks,
@@ -92,23 +235,24 @@ def clean_and_parse_json(text):
         cleaned = re.sub(r"\s*```$", "", cleaned)
         cleaned = cleaned.strip()
 
-    # Extract outermost JSON object { ... }
-    match = re.search(r'\{.*\}', cleaned, re.DOTALL)
-    if match:
-        json_candidate = match.group(0)
-    else:
-        json_candidate = cleaned
-
-    # Try standard JSON parsing
+    # 1. Try standard brace matching extraction
+    json_candidate = extract_json_by_matching_braces(cleaned)
     try:
         return json.loads(json_candidate)
     except json.JSONDecodeError:
         pass
 
-    # Fix trailing commas
+    # 2. Try trailing comma cleanup
     json_candidate_fixed = re.sub(r',\s*([\}\]])', r'\1', json_candidate)
     try:
         return json.loads(json_candidate_fixed)
+    except json.JSONDecodeError:
+        pass
+
+    # 3. Try full structural repair (truncation/missing brackets)
+    try:
+        repaired = repair_truncated_json(cleaned)
+        return json.loads(repaired)
     except json.JSONDecodeError:
         pass
 
@@ -205,22 +349,24 @@ Structure:
 
     try:
         client = _get_client()
-        model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        model_name = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
         
         try:
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt,
                 config=genai_types.GenerateContentConfig(
-                    response_mime_type="application/json"
+                    response_mime_type="application/json",
+                    max_output_tokens=4096
                 )
             )
         except Exception as model_err:
             response = client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-3.6-flash",
                 contents=prompt,
                 config=genai_types.GenerateContentConfig(
-                    response_mime_type="application/json"
+                    response_mime_type="application/json",
+                    max_output_tokens=4096
                 )
             )
 
@@ -241,6 +387,8 @@ Structure:
             prompt_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0) or 0
             completion_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0) or 0
             total_tokens = getattr(response.usage_metadata, 'total_token_count', 0) or (prompt_tokens + completion_tokens)
+
+        print(f"[Gemini API] Call: Relevance Judge | Prompt: {prompt_tokens} | Completion: {completion_tokens} | Total: {total_tokens} tokens", flush=True)
 
         return {
             "is_relevant": is_relevant,

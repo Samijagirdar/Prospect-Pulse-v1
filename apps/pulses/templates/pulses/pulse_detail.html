@@ -1,183 +1,5 @@
-{% extends "dashboard/base.html" %}
-{% load static %}
-
-{% block title %}{{ pulse.name }} — Details{% endblock %}
-
-{% block topbar_title %}{{ pulse.name }}{% endblock %}
-{% block topbar_sub %}Prospect Pulse Configuration and Results{% endblock %}
-
-{% block content %}
-<style>
-  .detail-card {
-    border: 1px solid var(--border);
-    background: var(--surface);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-  }
-
-  .detail-card-title {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--muted);
-    font-weight: 700;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 6px;
-  }
-
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-  }
-
-  .info-row:last-child {
-    border-bottom: none;
-  }
-
-  .info-label {
-    color: var(--muted);
-  }
-
-  .info-value {
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .competitor-badge {
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border);
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 10.5px;
-    font-weight: 600;
-    display: inline-block;
-    margin: 2px;
-  }
-
-  .persona-badge {
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border);
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    display: inline-block;
-    margin: 2px;
-  }
-
-  .btn-close-badge {
-    background: none;
-    border: none;
-    color: currentColor;
-    opacity: 0.6;
-    font-size: 13px;
-    line-height: 1;
-    padding: 0 0 0 4px;
-    cursor: pointer;
-    font-weight: bold;
-  }
-
-  .btn-close-badge:hover {
-    opacity: 1;
-    color: var(--accent);
-  }
-
-  .buying-signal-badge {
-    background: rgba(22, 163, 74, 0.05);
-    color: #16a34a;
-    border: 1px solid rgba(22, 163, 74, 0.15);
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .buying-signal-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #16a34a;
-  }
-
-  /* Sub-view tab navigation styling */
-  .sub-nav-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    padding: 10px 16px;
-    border-radius: 12px;
-    margin-bottom: 24px;
-  }
-
-  .sub-nav-btn {
-    font-weight: 600;
-    font-size: 13px;
-    padding: 8px 16px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.15s ease;
-  }
-
-  .sub-nav-btn:hover {
-    background: var(--surface2);
-    border-color: var(--border2);
-  }
-
-  .sub-nav-btn.active {
-    background: var(--accent4);
-    color: #fff;
-    border-color: var(--accent4);
-  }
-
-  .sub-nav-btn.discovery-btn {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-    margin-right: auto;
-  }
-
-  .sub-nav-btn.discovery-btn:hover {
-    background: var(--accent2);
-    border-color: var(--accent2);
-  }
-
-  .view-panel {
-    display: none;
-    animation: fadeIn 0.25s ease-out;
-  }
-
-  .view-panel.active {
-    display: block;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-</style>
+{% extends "dashboard/base.html" %} {% load static %} {% block title %}{{ pulse.name }} — Details{% endblock %} {% block topbar_title %}{{ pulse.name }}{% endblock %} {% block topbar_sub %}Prospect Pulse Configuration and Results{% endblock %} {% block content %}
+<link rel="stylesheet" href="{% static 'pulses/css/pulse_detail.css' %}" />
 
 <div class="ll-hero">
   <div class="ll-hero-glow"></div>
@@ -187,26 +9,226 @@
       <h1 class="ll-hero-title">{{ pulse.name }}</h1>
       <p class="ll-hero-sub">Track active discoveries and intent signals</p>
     </div>
-    <div class="ll-hero-actions" style="display:flex; gap:10px;">
-      <a href="{% url 'prospect_pulse:prospect_pulse_edit' pulse.uid %}?next=detail" class="btn btn-secondary btn-sm">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          style="width:12px;height:12px;margin-right:4px;">
+    <div
+      class="ll-hero-actions"
+      style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"
+    >
+      <!-- Run Discovery Form Button -->
+      <form
+        id="run-discovery-form"
+        method="post"
+        action="{% url 'prospect_pulse:prospect_pulse_discover' pulse.uid %}"
+        style="margin:0; display: {% if active_run_id %}none{% elif pulse.last_processed_at and pulse.is_active %}none{% else %}inline-block{% endif %};"
+      >
+        {% csrf_token %}
+        <button
+          type="submit"
+          id="btn-run-discovery-submit"
+          class="btn btn-primary btn-sm discovery-btn"
+          style="
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            font-weight: 700;
+            font-size: 12px;
+            padding: 8px 14px;
+          "
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="margin-right: 4px"
+          >
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span id="run-discovery-text">Run Discovery</span>
+        </button>
+      </form>
+
+      <!-- Discovery Loading Indicator Button -->
+      <div
+        id="discovery-loading-indicator"
+        class="btn btn-primary btn-sm"
+        style="height: 32px; display: {% if active_run_id %}inline-flex{% elif pulse.last_processed_at and pulse.is_active %}inline-flex{% else %}none{% endif %}; align-items: center; font-weight: 700; font-size: 12px; padding: 8px 14px; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); opacity: 0.85; cursor: default;"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          class="spin-icon"
+          style="
+            width: 12px;
+            height: 12px;
+            margin-right: 6px;
+            color: var(--accent);
+          "
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a10 10 0 0 1 10 10" />
+        </svg>
+        <span>Discovery in Progress...</span>
+      </div>
+
+      <!-- Track Progress Button -->
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        id="btn-track-progress"
+        style="display: {% if active_run_id %}inline-flex{% else %}none{% endif %}; align-items: center; gap: 6px; border-color: var(--accent); color: var(--accent); height: 32px; font-weight: 700; font-size: 12px; padding: 8px 14px;"
+        onclick="
+          document.getElementById('progressModal').style.display = 'flex'
+        "
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          class="spin-icon"
+          style="width: 12px; height: 12px"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a10 10 0 0 1 10 10" />
+        </svg>
+        Track Progress
+      </button>
+
+      <!-- Sources Button -->
+      <a
+        href="{% url 'discovery:pulse_sources' pulse.uid %}"
+        class="btn btn-secondary btn-sm"
+        id="btn-sources"
+        style="
+          height: 32px;
+          display: inline-flex;
+          align-items: center;
+          font-weight: 700;
+          font-size: 12px;
+          padding: 8px 14px;
+        "
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          style="margin-right: 4px"
+        >
+          <path d="M4 22V2M16 22V2M4 6h12M4 12h12M4 18h12"></path>
+        </svg>
+        Sources
+      </a>
+
+      <!-- Leads & Targets Button -->
+      <a
+        href="{% url 'discovery:pulse_leads' pulse.uid %}"
+        class="btn btn-secondary btn-sm"
+        id="btn-leads"
+        style="
+          height: 32px;
+          display: inline-flex;
+          align-items: center;
+          font-weight: 700;
+          font-size: 12px;
+          padding: 8px 14px;
+        "
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          style="margin-right: 4px"
+        >
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+        Leads & Targets
+      </a>
+
+      <!-- Edit Config Button -->
+      <a
+        href="{% url 'prospect_pulse:prospect_pulse_edit' pulse.uid %}?next=detail"
+        class="btn btn-secondary btn-sm"
+        style="
+          height: 32px;
+          display: inline-flex;
+          align-items: center;
+          font-weight: 700;
+          font-size: 12px;
+          padding: 8px 14px;
+        "
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          style="width: 12px; height: 12px; margin-right: 4px"
+        >
           <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
           <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>
         Edit Config
       </a>
-      <a href="{% url 'prospect_pulse:prospect_pulse_list' %}" class="btn btn-secondary btn-sm">
+
+      <!-- Back to List Button -->
+      <a
+        href="{% url 'prospect_pulse:prospect_pulse_list' %}"
+        class="btn btn-secondary btn-sm"
+        style="
+          height: 32px;
+          display: inline-flex;
+          align-items: center;
+          font-weight: 700;
+          font-size: 12px;
+          padding: 8px 14px;
+        "
+      >
         Back to List
       </a>
 
-      <button type="button" class="btn btn-sm"
-        style="color:var(--accent);border:1px solid rgba(212,0,0,0.2);background:var(--danger-bg);"
-        onclick="document.getElementById('customDeleteModal').style.display='flex';">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          style="width:12px;height:12px;margin-right:4px;">
+      <!-- Delete Button -->
+      <button
+        type="button"
+        class="btn btn-sm"
+        style="
+          color: var(--accent);
+          border: 1px solid rgba(212, 0, 0, 0.2);
+          background: var(--danger-bg);
+          height: 32px;
+          display: inline-flex;
+          align-items: center;
+          font-weight: 700;
+          font-size: 12px;
+          padding: 8px 14px;
+        "
+        onclick="
+          document.getElementById('customDeleteModal').style.display = 'flex'
+        "
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          style="width: 12px; height: 12px; margin-right: 4px"
+        >
           <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+          <path
+            d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"
+          />
         </svg>
         Delete
       </button>
@@ -220,7 +242,14 @@
   <div class="col-lg-4">
     <div class="detail-card h-100">
       <div class="detail-card-title">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="16" x2="12" y2="12" />
           <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -234,8 +263,15 @@
           {% if pulse.is_active %}
           <span class="status-badge success">Active</span>
           {% else %}
-          <span class="status-badge"
-            style="background:var(--surface2);color:var(--muted);border:1px solid var(--border);">Paused</span>
+          <span
+            class="status-badge"
+            style="
+              background: var(--surface2);
+              color: var(--muted);
+              border: 1px solid var(--border);
+            "
+            >Paused</span
+          >
           {% endif %}
         </span>
       </div>
@@ -247,16 +283,15 @@
 
       <div class="info-row">
         <span class="info-label">Source Detail</span>
-        <span class="info-value text-truncate" style="max-width: 160px;">
-          {% if pulse.input_type == 'pdf' %}
-          {{ pulse.pdf_file }}
-          {% elif pulse.input_type == 'url' %}
-          <a href="{{ pulse.url }}" target="_blank" style="color:var(--accent); text-decoration:none;">{{ pulse.url }}</a>
-          {% elif pulse.input_type == 'icp' %}
-          {{ pulse.from_document_id }}
-          {% else %}
-          Manual Text
-          {% endif %}
+        <span class="info-value text-truncate" style="max-width: 160px">
+          {% if pulse.input_type == 'pdf' %} {{ pulse.pdf_file }} {% elif pulse.input_type == 'url' %}
+          <a
+            href="{{ pulse.url }}"
+            target="_blank"
+            style="color: var(--accent); text-decoration: none"
+            >{{ pulse.url }}</a
+          >
+          {% elif pulse.input_type == 'icp' %} {{ pulse.from_document_id }} {% else %} Manual Text {% endif %}
         </span>
       </div>
 
@@ -269,49 +304,97 @@
         <span class="info-label">Last Run</span>
         <span class="info-value">
           {% if pulse.last_processed_at %}
-          {{ pulse.last_processed_at|date:"M d, Y H:i" }}
+            {{ pulse.last_processed_at|date:"M d, Y H:i" }}
           {% else %}
-          Never Run
+            Never Run
           {% endif %}
         </span>
       </div>
 
       <!-- Competitors -->
-      <div class="info-row"
-        style="flex-direction:column; align-items:flex-start; gap:4px; padding-top:12px; border-top:1px dashed var(--border);">
+      <div
+        class="info-row"
+        style="
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          padding-top: 12px;
+          border-top: 1px dashed var(--border);
+        "
+      >
         <div class="d-flex justify-content-between align-items-center w-100">
-          <span class="info-label"
-            style="font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Monitored
-            Competitors</span>
-          <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 font-weight-bold" style="font-size:10px; border-radius:4px;" onclick="showAddInput('competitor')">+ Add</button>
+          <span
+            class="info-label"
+            style="
+              font-weight: 700;
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            "
+            >Monitored Competitors</span
+          >
+          <button
+            type="button"
+            class="btn btn-xs btn-outline-secondary py-0 px-1 font-weight-bold"
+            style="font-size: 10px; border-radius: 4px"
+            onclick="showAddInput('competitor')"
+          >
+            + Add
+          </button>
         </div>
-        <div style="width:100%; display:flex; flex-wrap:wrap; margin-top:2px;">
-          {% if pulse.competitors_list %}
-          {% for competitor in pulse.competitors_list %}
-          <span class="competitor-badge d-inline-flex align-items-center gap-1">{{ competitor }} <button type="button" class="btn-close-badge" onclick="removeItem('competitor', '{{ competitor|escapejs }}', this)" title="Remove">&times;</button></span>
-          {% endfor %}
-          {% else %}
-          <span style="font-size:12px; color:var(--muted); font-style:italic;">None monitored</span>
+        <div
+          style="width: 100%; display: flex; flex-wrap: wrap; margin-top: 2px"
+        >
+          {% if pulse.competitors_list %} {% for competitor in pulse.competitors_list %}
+          <span class="competitor-badge d-inline-flex align-items-center gap-1"
+            >{{ competitor }}
+            <button
+              type="button"
+              class="btn-close-badge"
+              onclick="removeItem('competitor', '{{ competitor|escapejs }}', this)"
+              title="Remove"
+            >
+              &times;
+            </button></span
+          >
+          {% endfor %} {% else %}
+          <span style="font-size: 12px; color: var(--muted); font-style: italic"
+            >None monitored</span
+          >
           {% endif %}
         </div>
         <div id="add-competitor-box" class="d-none mt-2 w-100">
           <div class="input-group input-group-sm">
-            <input type="text" id="add-competitor-input" class="form-control form-control-sm" placeholder="Enter competitor name..." onkeydown="if(event.key==='Enter') addItem('competitor')">
-            <button class="btn btn-primary btn-sm" type="button" onclick="addItem('competitor')">Add</button>
+            <input
+              type="text"
+              id="add-competitor-input"
+              class="form-control form-control-sm"
+              placeholder="Enter competitor name..."
+              onkeydown="if (event.key === 'Enter') addItem('competitor');"
+            />
+            <button
+              class="btn btn-primary btn-sm"
+              type="button"
+              onclick="addItem('competitor')"
+            >
+              Add
+            </button>
           </div>
         </div>
       </div>
 
       <div class="mt-3">
-        <form method="post" action="{% url 'prospect_pulse:prospect_pulse_toggle' pulse.uid %}" class="d-grid">
+        <form
+          method="post"
+          action="{% url 'prospect_pulse:prospect_pulse_toggle' pulse.uid %}"
+          class="d-grid"
+        >
           {% csrf_token %}
-          <button type="submit"
-            class="btn {% if pulse.is_active %}btn-outline-warning{% else %}btn-primary{% endif %} btn-sm">
-            {% if pulse.is_active %}
-            Pause Pulse
-            {% else %}
-            Activate Pulse
-            {% endif %}
+          <button
+            type="submit"
+            class="btn {% if pulse.is_active %}btn-outline-warning{% else %}btn-primary{% endif %} btn-sm"
+          >
+            {% if pulse.is_active %} Pause Pulse {% else %} Activate Pulse {% endif %}
           </button>
         </form>
       </div>
@@ -322,25 +405,65 @@
   <div class="col-lg-4">
     <div class="detail-card h-100">
       <div class="detail-card-title">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+          />
           <polyline points="14 2 14 8 20 8" />
         </svg>
         Pulse Summary (AI Extracted)
       </div>
 
       <!-- AI Confidence Score Badge -->
-      <div class="info-row"
-        style="flex-direction:column; align-items:flex-start; gap:4px; padding:6px 0; border-bottom:1px solid var(--border);">
+      <div
+        class="info-row"
+        style="
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          padding: 6px 0;
+          border-bottom: 1px solid var(--border);
+        "
+      >
         <div class="d-flex justify-content-between align-items-center w-100">
-          <span class="info-label"
-            style="font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:#3b82f6;">AI
-            Confidence: {{ pulse.ai_confidence_score }}%</span>
-          <span class="badge" style="background:#dbeafe; color:#1e40af; font-size:9.5px; font-weight:700;">GEMINI
-            FIT</span>
+          <span
+            class="info-label"
+            style="
+              font-weight: 700;
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #3b82f6;
+            "
+            >AI Confidence: {{ pulse.ai_confidence_score }}%</span
+          >
+          <span
+            class="badge"
+            style="
+              background: #dbeafe;
+              color: #1e40af;
+              font-size: 9.5px;
+              font-weight: 700;
+            "
+            >GEMINI FIT</span
+          >
         </div>
         {% if pulse.ai_confidence_reason %}
-        <span style="font-size:11px; color:var(--muted); line-height:1.3; font-style:italic;">
+        <span
+          style="
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.3;
+            font-style: italic;
+          "
+        >
           "{{ pulse.ai_confidence_reason }}"
         </span>
         {% endif %}
@@ -348,72 +471,184 @@
 
       <div class="info-row">
         <span class="info-label">Company Size</span>
-        <span class="info-value">{{ pulse.company_size|default:"100-500" }}</span>
+        <span class="info-value"
+          >{{ pulse.company_size|default:"100-500" }}</span
+        >
       </div>
 
       <div class="info-row">
         <span class="info-label">Revenue Range</span>
-        <span class="info-value">{{ pulse.revenue_range|default:"$10M - $50M" }}</span>
+        <span class="info-value"
+          >{{ pulse.revenue_range|default:"$10M - $50M" }}</span
+        >
       </div>
 
       <div class="info-row">
         <span class="info-label">Employee Count</span>
-        <span class="info-value">{{ pulse.employee_count|default:"100-400" }}</span>
+        <span class="info-value"
+          >{{ pulse.employee_count|default:"100-400" }}</span
+        >
       </div>
 
       <!-- Target Focus -->
-      <div class="info-row" style="flex-direction:column; align-items:flex-start; gap:4px; padding:10px 0;">
+      <div
+        class="info-row"
+        style="
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          padding: 10px 0;
+        "
+      >
         <div class="d-flex justify-content-between align-items-center w-100">
-          <span class="info-label"
-            style="font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Target Focus</span>
-          <button type="button" class="btn btn-xs btn-outline-danger py-0 px-1 font-weight-bold" style="font-size:10px; border-radius:4px;" onclick="showAddInput('focus')">+ Add Focus</button>
+          <span
+            class="info-label"
+            style="
+              font-weight: 700;
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            "
+            >Target Focus</span
+          >
+          <button
+            type="button"
+            class="btn btn-xs btn-outline-danger py-0 px-1 font-weight-bold"
+            style="font-size: 10px; border-radius: 4px"
+            onclick="showAddInput('focus')"
+          >
+            + Add Focus
+          </button>
         </div>
-        <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; width:100%;">
-          {% if pulse.target_account_focus_list %}
-          {% for focus in pulse.target_account_focus_list %}
-          <span class="persona-badge d-inline-flex align-items-center gap-1"
-            style="background: rgba(220, 38, 38, 0.04); color: var(--accent); border: 1px solid rgba(220, 38, 38, 0.08); font-size:10.5px;">
+        <div
+          style="
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 4px;
+            width: 100%;
+          "
+        >
+          {% if pulse.target_account_focus_list %} {% for focus in pulse.target_account_focus_list %}
+          <span
+            class="persona-badge d-inline-flex align-items-center gap-1"
+            style="
+              background: rgba(220, 38, 38, 0.04);
+              color: var(--accent);
+              border: 1px solid rgba(220, 38, 38, 0.08);
+              font-size: 10.5px;
+            "
+          >
             {{ focus }}
-            <button type="button" class="btn-close-badge" onclick="removeItem('focus', '{{ focus|escapejs }}', this)" title="Remove">&times;</button>
+            <button
+              type="button"
+              class="btn-close-badge"
+              onclick="removeItem('focus', '{{ focus|escapejs }}', this)"
+              title="Remove"
+            >
+              &times;
+            </button>
           </span>
-          {% endfor %}
-          {% else %}
-          <span style="font-size:12px; color:var(--muted); font-style:italic;">No focus areas defined</span>
+          {% endfor %} {% else %}
+          <span style="font-size: 12px; color: var(--muted); font-style: italic"
+            >No focus areas defined</span
+          >
           {% endif %}
         </div>
         <div id="add-focus-box" class="d-none mt-2 w-100">
           <div class="input-group input-group-sm">
-            <input type="text" id="add-focus-input" class="form-control form-control-sm" placeholder="Enter focus chip..." onkeydown="if(event.key==='Enter') addItem('focus')">
-            <button class="btn btn-danger btn-sm" type="button" onclick="addItem('focus')">Add</button>
+            <input
+              type="text"
+              id="add-focus-input"
+              class="form-control form-control-sm"
+              placeholder="Enter focus chip..."
+              onkeydown="if (event.key === 'Enter') addItem('focus');"
+            />
+            <button
+              class="btn btn-danger btn-sm"
+              type="button"
+              onclick="addItem('focus')"
+            >
+              Add
+            </button>
           </div>
         </div>
       </div>
 
       <!-- Target Personas -->
-      <div class="info-row"
-        style="flex-direction:column; align-items:flex-start; gap:4px; border-bottom:none; padding-top:10px;">
+      <div
+        class="info-row"
+        style="
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          border-bottom: none;
+          padding-top: 10px;
+        "
+      >
         <div class="d-flex justify-content-between align-items-center w-100">
-          <span class="info-label"
-            style="font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px;">Personas
-            Targeted</span>
-          <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1 font-weight-bold" style="font-size:10px; border-radius:4px;" onclick="showAddInput('persona')">+ Add Persona</button>
+          <span
+            class="info-label"
+            style="
+              font-weight: 700;
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            "
+            >Personas Targeted</span
+          >
+          <button
+            type="button"
+            class="btn btn-xs btn-outline-secondary py-0 px-1 font-weight-bold"
+            style="font-size: 10px; border-radius: 4px"
+            onclick="showAddInput('persona')"
+          >
+            + Add Persona
+          </button>
         </div>
-        <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; width:100%;">
-          {% if pulse.personas_list %}
-          {% for persona in pulse.personas_list %}
+        <div
+          style="
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 4px;
+            width: 100%;
+          "
+        >
+          {% if pulse.personas_list %} {% for persona in pulse.personas_list %}
           <span class="persona-badge d-inline-flex align-items-center gap-1">
             {{ persona.role }}
-            <button type="button" class="btn-close-badge" onclick="removeItem('persona', '{{ persona.role|escapejs }}', this)" title="Remove">&times;</button>
+            <button
+              type="button"
+              class="btn-close-badge"
+              onclick="removeItem('persona', '{{ persona.role|escapejs }}', this)"
+              title="Remove"
+            >
+              &times;
+            </button>
           </span>
-          {% endfor %}
-          {% else %}
-          <span style="font-size:12px; color:var(--muted); font-style:italic;">No personas specified</span>
+          {% endfor %} {% else %}
+          <span style="font-size: 12px; color: var(--muted); font-style: italic"
+            >No personas specified</span
+          >
           {% endif %}
         </div>
         <div id="add-persona-box" class="d-none mt-2 w-100">
           <div class="input-group input-group-sm">
-            <input type="text" id="add-persona-input" class="form-control form-control-sm" placeholder="Enter persona title..." onkeydown="if(event.key==='Enter') addItem('persona')">
-            <button class="btn btn-secondary btn-sm" type="button" onclick="addItem('persona')">Add</button>
+            <input
+              type="text"
+              id="add-persona-input"
+              class="form-control form-control-sm"
+              placeholder="Enter persona title..."
+              onkeydown="if (event.key === 'Enter') addItem('persona');"
+            />
+            <button
+              class="btn btn-secondary btn-sm"
+              type="button"
+              onclick="addItem('persona')"
+            >
+              Add
+            </button>
           </div>
         </div>
       </div>
@@ -423,165 +658,343 @@
   <!-- Column 3: Categorized Search Keywords & Buying Signals -->
   <div class="col-lg-4">
     <!-- Card 1: AI Search Keywords -->
-    <div class="detail-card mb-3" style="padding: 16px 20px; margin-bottom: 12px;">
-      <div class="detail-card-title" style="margin-bottom: 8px;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <div
+      class="detail-card mb-3"
+      style="padding: 16px 20px; margin-bottom: 12px"
+    >
+      <div class="detail-card-title" style="margin-bottom: 8px">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
         AI Search Keywords
       </div>
-      <div class="d-flex flex-column" style="max-height: 165px; overflow-y: auto; padding-right: 4px;">
+      <div
+        class="d-flex flex-column"
+        style="max-height: 165px; overflow-y: auto; padding-right: 4px"
+      >
         {% for category, keywords in pulse.categorized_keywords.items %}
         <div
-          style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin: 6px 0 4px 2px; letter-spacing:0.3px;">
-          {{ category }}</div>
+          style="
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin: 6px 0 4px 2px;
+            letter-spacing: 0.3px;
+          "
+        >
+          {{ category }}
+        </div>
         {% for keyword in keywords %}
-        <div class="buying-signal-badge"
-          style="background: rgba(59, 130, 246, 0.05); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.15); margin-bottom: 4px; padding: 4px 10px; font-size:11.5px;">
-          <div class="buying-signal-dot" style="background: #3b82f6; width: 5px; height: 5px;"></div>
+        <div
+          class="buying-signal-badge"
+          style="
+            background: rgba(59, 130, 246, 0.05);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            margin-bottom: 4px;
+            padding: 4px 10px;
+            font-size: 11.5px;
+          "
+        >
+          <div
+            class="buying-signal-dot"
+            style="background: #3b82f6; width: 5px; height: 5px"
+          ></div>
           {{ keyword }}
         </div>
-        {% endfor %}
-        {% endfor %}
+        {% endfor %} {% endfor %}
       </div>
     </div>
 
     <!-- Card 2: High-Intent Buying Signals -->
-    <div class="detail-card" style="padding: 16px 20px;">
-      <div class="detail-card-title" style="margin-bottom: 8px;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <div class="detail-card" style="padding: 16px 20px">
+      <div class="detail-card-title" style="margin-bottom: 8px">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
         </svg>
         High-Intent Buying Signals
       </div>
-      <div class="d-flex flex-column" style="max-height: 165px; overflow-y: auto; padding-right: 4px;">
+      <div
+        class="d-flex flex-column"
+        style="max-height: 165px; overflow-y: auto; padding-right: 4px"
+      >
         {% for category, signals in pulse.categorized_buying_signals.items %}
         <div
-          style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin: 6px 0 4px 2px; letter-spacing:0.3px;">
-          {{ category }}</div>
+          style="
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin: 6px 0 4px 2px;
+            letter-spacing: 0.3px;
+          "
+        >
+          {{ category }}
+        </div>
         {% for signal in signals %}
-        <div class="buying-signal-badge" style="margin-bottom: 4px; padding: 4px 10px; font-size:11.5px;">
-          <div class="buying-signal-dot" style="width: 5px; height: 5px;"></div>
+        <div
+          class="buying-signal-badge"
+          style="margin-bottom: 4px; padding: 4px 10px; font-size: 11.5px"
+        >
+          <div class="buying-signal-dot" style="width: 5px; height: 5px"></div>
           {{ signal }}
         </div>
-        {% endfor %}
-        {% endfor %}
+        {% endfor %} {% endfor %}
       </div>
     </div>
   </div>
 </div>
 
-<!-- Navigation Bar: Run Discovery, Sources, and Leads -->
-<div class="sub-nav-bar" style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
-  <form id="run-discovery-form" method="post" action="{% url 'prospect_pulse:prospect_pulse_discover' pulse.uid %}" style="margin:0; display: inline-block;">
-    {% csrf_token %}
-    <button type="submit" class="sub-nav-btn discovery-btn">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-      </svg>
-      Run Discovery
-    </button>
-  </form>
-
-  <button type="button" class="sub-nav-btn" id="btn-track-progress" style="display: {% if active_run_id %}inline-flex{% else %}none{% endif %}; align-items: center; gap: 6px; border-color: var(--accent); color: var(--accent);" onclick="document.getElementById('progressModal').style.display = 'flex';">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin-icon" style="width:14px;height:14px;">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M12 2a10 10 0 0 1 10 10" />
-    </svg>
-    Track Progress
-  </button>
-
-  <button class="sub-nav-btn active" id="btn-config" onclick="switchSubView('config')">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-    </svg>
-    Config Details
-  </button>
-
-  <a href="{% url 'discovery:pulse_sources' pulse.uid %}" class="sub-nav-btn" id="btn-sources">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M4 22V2M16 22V2M4 6h12M4 12h12M4 18h12"></path>
-    </svg>
-    Sources
-  </a>
-
-  <a href="{% url 'discovery:pulse_leads' pulse.uid %}" class="sub-nav-btn" id="btn-leads">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-    Leads & Targets
-  </a>
-</div>
-
 <!-- Custom Confirm Modal -->
-<div id="customDeleteModal" class="custom-confirm-overlay"
-  style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.4); backdrop-filter:blur(6px); z-index:10000; align-items:center; justify-content:center;">
-  <div class="custom-confirm-box"
-    style="background:var(--surface); border:1px solid var(--border); border-radius:12px; max-width:400px; width:90%; padding:24px; box-shadow:0 10px 25px -5px rgba(0,0,0,0.4); text-align:left;">
+<div
+  id="customDeleteModal"
+  class="custom-confirm-overlay"
+  style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(6px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  "
+>
+  <div
+    class="custom-confirm-box"
+    style="
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+      text-align: left;
+    "
+  >
     <h4
-      style="font-weight:700; font-size:16px; margin-bottom:8px; color:var(--text); display:flex; align-items:center; gap:8px;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="width:18px;height:18px;">
-        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+      style="
+        font-weight: 700;
+        font-size: 16px;
+        margin-bottom: 8px;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      "
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--accent)"
+        stroke-width="2"
+        style="width: 18px; height: 18px"
+      >
+        <path
+          d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+        />
         <line x1="12" y1="9" x2="12" y2="13" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
       Confirm Deletion
     </h4>
-    <p style="font-size:13px; color:var(--muted); margin-bottom:20px; line-height:1.5;">
-      Are you sure you want to delete the pulse configuration <strong>{{ pulse.name }}</strong>? This action cannot be undone.
+    <p
+      style="
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 20px;
+        line-height: 1.5;
+      "
+    >
+      Are you sure you want to delete the pulse configuration
+      <strong>{{ pulse.name }}</strong>? This action cannot be undone.
     </p>
-    <div style="display:flex; justify-content:flex-end; gap:8px;">
-      <button type="button" class="btn btn-secondary btn-sm"
-        onclick="document.getElementById('customDeleteModal').style.display='none';"
-        style="padding:8px 14px;">Cancel</button>
-      <button type="button" class="btn btn-sm" onclick="performDelete()"
-        style="background:var(--accent); border-color:var(--accent); color:#fff; padding:8px 14px;">Delete</button>
+    <div style="display: flex; justify-content: flex-end; gap: 8px">
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        onclick="
+          document.getElementById('customDeleteModal').style.display = 'none'
+        "
+        style="padding: 8px 14px"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm"
+        onclick="performDelete()"
+        style="
+          background: var(--accent);
+          border-color: var(--accent);
+          color: #fff;
+          padding: 8px 14px;
+        "
+      >
+        Delete
+      </button>
     </div>
   </div>
 </div>
 
 <!-- Custom Progress Tracker Modal -->
-<div id="progressModal" class="custom-confirm-overlay"
-  style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(8px); z-index:10000; align-items:center; justify-content:center;">
-  <div class="custom-confirm-box"
-    style="background:var(--surface); border:1px solid var(--border); border-radius:16px; max-width:550px; width:90%; padding:30px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5); text-align:left;">
+<div
+  id="progressModal"
+  class="custom-confirm-overlay"
+  style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  "
+>
+  <div
+    class="custom-confirm-box"
+    style="
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      max-width: 650px;
+      width: 90%;
+      padding: 30px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      text-align: left;
+    "
+  >
     <h4
-      style="font-weight:800; font-size:18px; margin-bottom:12px; color:var(--text); display:flex; align-items:center; gap:10px;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" class="spin-icon" style="width:20px;height:20px;">
+      style="
+        font-weight: 800;
+        font-size: 18px;
+        margin-bottom: 12px;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      "
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--accent)"
+        stroke-width="2.5"
+        class="spin-icon"
+        style="width: 22px; height: 22px"
+      >
         <circle cx="12" cy="12" r="10" />
         <path d="M12 2a10 10 0 0 1 10 10" />
       </svg>
-      Prospect Discovery In Progress
+      Prospect Discovery Status
     </h4>
-    <p style="font-size:13px; color:var(--muted); margin-bottom:20px; line-height:1.5;">
-      We are currently scraping news sources, deduplicating duplicates, and scoring signals. This might take 1-2 minutes.
+    <p
+      style="
+        font-size: 13.5px;
+        color: var(--muted);
+        margin-bottom: 20px;
+        line-height: 1.5;
+        font-weight: 500;
+      "
+    >
+      The AI agent is currently scraping news channels, filtering duplicates,
+      and evaluating target lead relevance scores.
     </p>
-    
+
     <!-- Progress Indicator Bar -->
-    <div style="width:100%; height:8px; background:rgba(0, 0, 0, 0.06); border-radius:4px; overflow:hidden; margin-bottom:16px;">
-      <div id="progress-bar-indicator" style="width:10%; height:100%; background:var(--accent); border-radius:4px; transition: width 0.4s ease;"></div>
+    <div
+      style="
+        width: 100%;
+        height: 8px;
+        background: rgba(0, 0, 0, 0.06);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 20px;
+      "
+    >
+      <div
+        id="progress-bar-indicator"
+        style="
+          width: 10%;
+          height: 100%;
+          background: var(--accent);
+          border-radius: 4px;
+          transition: width 0.4s ease;
+        "
+      ></div>
     </div>
-    
-    <!-- Live Status Log Console -->
-    <div style="background:#0f172a; color:#38bdf8; font-family:'Courier New', Courier, monospace; font-size:11.5px; padding:16px; border-radius:8px; height:120px; overflow-y:auto; border:1px solid #1e293b; line-height:1.6; text-align:left; word-break:break-all;" id="progress-log-console">
-      [Initializing discovery run...]
+
+    <!-- Live Status Log Steps -->
+    <div
+      style="
+        background: var(--background);
+        color: var(--text);
+        font-size: 13px;
+        padding: 20px;
+        border-radius: 12px;
+        height: 240px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        line-height: 1.6;
+        text-align: left;
+      "
+      id="progress-log-console"
+    >
+      <div
+        class="placeholder-text"
+        style="color: var(--muted); font-style: italic; font-weight: 500"
+      >
+        Initializing discovery pipeline...
+      </div>
     </div>
-    
-    <div style="display:flex; justify-content:flex-end; margin-top:16px;">
-      <button type="button" class="btn btn-secondary btn-sm" style="padding: 6px 14px; font-size: 12px;" onclick="document.getElementById('progressModal').style.display='none';">Close Console</button>
+
+    <div style="display: flex; justify-content: flex-end; margin-top: 20px">
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        style="padding: 8px 18px; font-size: 13px; font-weight: 700"
+        onclick="
+          document.getElementById('progressModal').style.display = 'none'
+        "
+      >
+        Close Progress Window
+      </button>
     </div>
   </div>
 </div>
 
 <style>
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
   .spin-icon {
     animation: spin 1.2s linear infinite;
@@ -589,216 +1002,13 @@
 </style>
 
 <script>
-  const manageItemUrl = "{% url 'prospect_pulse:pulse_manage_item' pulse.uid %}";
-  const csrfToken = "{{ csrf_token }}";
-
-  // Intercept Run Discovery submit
-  document.addEventListener('DOMContentLoaded', function() {
-    // If active run is already executing on load, poll it
-    {% if active_run_id %}
-    pollRunStatus({{ active_run_id }});
-    {% endif %}
-
-    const discoveryForm = document.getElementById('run-discovery-form');
-    if (discoveryForm) {
-      discoveryForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Show track progress button, but keep modal hidden
-        const trackBtn = document.getElementById('btn-track-progress');
-        if (trackBtn) trackBtn.style.display = 'inline-flex';
-        
-        // Alert user
-        const consoleLog = document.getElementById('progress-log-console');
-        const progressBar = document.getElementById('progress-bar-indicator');
-        
-        consoleLog.innerHTML = '[System] Launching crawler queries in background...\n';
-        progressBar.style.width = '10%';
-        
-        // Flash user message
-        const submitBtn = discoveryForm.querySelector('button[type="submit"]');
-        const originalHtml = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = 'Starting...';
-        
-        fetch(discoveryForm.action, {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrfToken
-          }
-        })
-        .then(res => res.json())
-        .then(data => {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = originalHtml;
-          
-          if (data.success && data.run_id) {
-            consoleLog.innerHTML += `[System] Job spawned in background. Run ID: ${data.run_id}\n`;
-            
-            // Show temporary alert banner
-            const alertBox = document.createElement('div');
-            alertBox.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); padding: 16px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 10px;";
-            alertBox.innerHTML = `
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-              </svg>
-              <span>Discovery started in background. Click <strong>Track Progress</strong> to view live logs.</span>
-            `;
-            document.body.appendChild(alertBox);
-            setTimeout(() => { alertBox.remove(); }, 5000);
-            
-            pollRunStatus(data.run_id);
-          } else {
-            consoleLog.innerHTML += `[Error] Failed to trigger discovery: ${data.error || 'Setup failure'}\n`;
-            alert(data.error || 'Failed to trigger discovery run');
-          }
-        })
-        .catch(err => {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = originalHtml;
-          consoleLog.innerHTML += `[Error] Request failed or timed out.\n`;
-          alert('Error initializing discovery run');
-        });
-      });
-    }
-  });
-
-  function pollRunStatus(runId) {
-    const consoleLog = document.getElementById('progress-log-console');
-    const progressBar = document.getElementById('progress-bar-indicator');
-    const trackBtn = document.getElementById('btn-track-progress');
-    const statusUrl = `/runs/${runId}/status/`;
-    let lastStatus = '';
-    
-    // Ensure button is visible if it is polling
-    if (trackBtn) trackBtn.style.display = 'inline-flex';
-    
-    const interval = setInterval(() => {
-      fetch(statusUrl)
-        .then(res => res.json())
-        .then(data => {
-          const timestamp = new Date().toLocaleTimeString();
-          const cleanStatus = data.status || 'running';
-          
-          if (cleanStatus !== lastStatus) {
-            consoleLog.innerHTML += `[${timestamp}] ${cleanStatus}\n`;
-            consoleLog.scrollTop = consoleLog.scrollHeight;
-            lastStatus = cleanStatus;
-          }
-          
-          // Move progress bar
-          if (cleanStatus.includes('Scraping')) {
-            progressBar.style.width = '40%';
-          } else if (cleanStatus.includes('Deduplicating')) {
-            progressBar.style.width = '70%';
-          } else if (cleanStatus.includes('Summarizing')) {
-            progressBar.style.width = '90%';
-          }
-          
-          if (cleanStatus === 'completed') {
-            progressBar.style.width = '100%';
-            consoleLog.innerHTML += `\n[System] Completed successfully! Fetching fresh data...\n`;
-            clearInterval(interval);
-            setTimeout(() => {
-              location.reload();
-            }, 1000);
-          } else if (cleanStatus === 'failed') {
-            consoleLog.innerHTML += `\n[Error] Run failed: ${data.error_message || 'Pipeline crashed'}\n`;
-            clearInterval(interval);
-            setTimeout(() => {
-              document.getElementById('progressModal').style.display = 'none';
-            }, 5000);
-          }
-        })
-        .catch(err => {
-          console.error("Polling error:", err);
-        });
-    }, 1500);
-  }
-
-
-  // Tab View toggling logic
-  function switchSubView(viewName) {
-    // Remove active from all sub nav buttons
-    document.querySelectorAll('.sub-nav-btn').forEach(btn => {
-      if (btn.id !== 'btn-discovery') btn.classList.remove('active');
-    });
-    // Add active to selected button
-    const activeBtn = document.getElementById(`btn-${viewName}`);
-    if (activeBtn) activeBtn.classList.add('active');
-
-    // Hide all panels
-    document.querySelectorAll('.view-panel').forEach(panel => {
-      panel.classList.remove('active');
-    });
-
-    // If config, show nothing below (default top row is active)
-    if (viewName !== 'config') {
-      const activePanel = document.getElementById(`panel-${viewName}`);
-      if (activePanel) activePanel.classList.add('active');
-    }
-  }
-
-  function showAddInput(type) {
-    const box = document.getElementById(`add-${type}-box`);
-    box.classList.toggle('d-none');
-    if (!box.classList.contains('d-none')) {
-      const input = document.getElementById(`add-${type}-input`);
-      if (input) input.focus();
-    }
-  }
-
-  function removeItem(type, val, btnEl) {
-    if (!confirm(`Are you sure you want to remove "${val}"?`)) return;
-    
-    fetch(manageItemUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken
-      },
-      body: JSON.stringify({ item_type: type, action: 'remove', value: val })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        const badge = btnEl.closest('span');
-        if (badge) badge.remove();
-      } else {
-        alert(data.error || 'Failed to remove item');
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      alert('Error removing item');
-    });
-  }
-
-  function addItem(type) {
-    const input = document.getElementById(`add-${type}-input`);
-    const val = input.value.trim();
-    if (!val) return;
-
-    fetch(manageItemUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken
-      },
-      body: JSON.stringify({ item_type: type, action: 'add', value: val })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        location.reload();
-      } else {
-        alert(data.error || 'Failed to add item');
-      }
-    })
-    .catch(err => {
-      console.error(err);
-      alert('Error adding item');
-    });
-  }
+  window.PULSE_CONFIG = {
+    manageItemUrl: "{% url 'prospect_pulse:pulse_manage_item' pulse.uid %}",
+    deleteUrl: "{% url 'prospect_pulse:prospect_pulse_delete' pulse.uid %}",
+    listUrl: "{% url 'prospect_pulse:prospect_pulse_list' %}",
+    csrfToken: "{{ csrf_token }}",
+    activeRunId: {% if active_run_id %}{{ active_run_id }}{% else %}null{% endif %}
+  };
 </script>
+<script src="{% static 'pulses/js/pulse_detail.js' %}"></script>
 {% endblock %}

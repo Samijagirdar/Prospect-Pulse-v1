@@ -207,9 +207,24 @@ class GoogleNewsScraper:
         return date_string
 
     def clean_text(self, text):
-        """Clean and normalize text"""
+        """Clean and normalize text, decoding any literal Unicode escapes and HTML entities"""
         if not text:
             return ""
+        
+        import html
+        import re
+
+        # Decode literal unicode escape sequences like \u002d or \u002D
+        try:
+            def decode_match(match):
+                return chr(int(match.group(1), 16))
+            text = re.sub(r'\\u([0-9a-fA-F]{4})', decode_match, text)
+        except Exception as e:
+            print(f"Scraper: Unicode escape decode error: {e}")
+
+        # Decode HTML entities (e.g. &amp;, &quot;, &#39;)
+        text = html.unescape(text)
+
         return ' '.join(text.split()).strip()
 
     async def fallback_parse(self, content, query, page_num, timeframe_days):

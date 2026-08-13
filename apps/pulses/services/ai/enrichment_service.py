@@ -71,7 +71,133 @@ def generate_ai_pulse_insights(pulse):
     elif pulse.input_type == 'text' and pulse.text_content:
         raw_text = pulse.text_content
     elif pulse.input_type == 'icp' and pulse.from_document_id:
-        raw_text = ""
+        import json
+        from django.db import connection
+        
+        # 1. Fetch from gtm_gtmplan via raw SQL to support prod environment without GtmPlan model
+        row = None
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT name, notes, icp_definition, buyer_personas, target_industries, value_propositions, product_offerings, target_companies "
+                    "FROM gtm_gtmplan WHERE id = %s",
+                    [pulse.from_document_id]
+                )
+                row = cursor.fetchone()
+        except Exception as e:
+            raise ValueError(f"Failed to query gtm_gtmplan database table: {e}")
+            
+        if not row:
+            raise ValueError(f"Selected GTM Plan/ICP template with ID {pulse.from_document_id} does not exist.")
+            
+        # Parse fields from the DB row
+        name = row[0] or ""
+        notes = row[1] or ""
+        icp_def = json.loads(row[2]) if row[2] else {}
+        buyer_personas_list = json.loads(row[3]) if row[3] else []
+        target_industries = json.loads(row[4]) if row[4] else []
+        value_propositions = json.loads(row[5]) if row[5] else []
+        product_offerings = json.loads(row[6]) if row[6] else []
+        target_companies = json.loads(row[7]) if row[7] else []
+        
+        # 2. Extract values from DB GTM strategy template
+        industry_str = ", ".join(target_industries) if isinstance(target_industries, list) else str(target_industries)
+        if not industry_str:
+            industry_str = icp_def.get('industry', '')
+            
+        tech = icp_def.get('technology_stack', [])
+        tech_str = ", ".join(tech) if isinstance(tech, list) else str(tech)
+        
+        ideal_champ = icp_def.get('ideal_buyer_persona') or ", ".join([p.get('title', '') for p in buyer_personas_list[:2]])
+        
+        # Format existing personas
+        personas_data = []
+        for idx, bp in enumerate(buyer_personas_list):
+            goals = bp.get('goals') or []
+            goals_str = ", ".join(goals) if isinstance(goals, list) else str(goals)
+            resp = bp.get('responsibilities') or []
+            resp_str = ", ".join(resp) if isinstance(resp, list) else str(resp)
+            challenges = bp.get('challenges') or []
+            challenges_str = ", ".join(challenges) if isinstance(challenges, list) else str(challenges)
+            
+            personas_data.append({
+                'role': bp.get('title') or f"Persona {idx+1}",
+                'type': bp.get('role') or ('Economic Buyer' if idx == 0 else 'Technical Champion'),
+                'responsibilities': resp_str,
+                'goals': goals_str,
+                'roadblocks': challenges_str,
+                'pain_points': bp.get('pain_points') or []
+            })
+            
+        # Target competitors
+        competitors_data = target_companies[:8] if isinstance(target_companies, list) else []
+        
+        # Buying Signals
+        buying_signals_list = icp_def.get('buying_signals') or []
+        
+        # Compile existing profile dictionary to send to Gemini (identifying what is missing)
+        existing_data = {
+            'industry': industry_str,
+            'company_size': icp_def.get('company_size', ''),
+            'revenue_range': icp_def.get('revenue_range', ''),
+            'employee_count': icp_def.get('employee_count', ''),
+            'target_account_focus': ", ".join(product_offerings),
+            'ideal_champion': ideal_champ,
+            'tech_stack': tech_str,
+            'competitors': competitors_data,
+            'buying_signals': buying_signals_list,
+            'personas': personas_data
+        }
+        
+        # 3. Call Gemini to enrich missing parameters AND generate RSS search keywords
+        print("Calling Gemini API to enrich missing parameters and generate target RSS search keywords...")
+        enriched = gemini_service.enrich_missing_gtm_params(
+            name=name,
+            description=notes,
+            industries=industry_str,
+            value_props=", ".join(value_propositions),
+            existing_data=existing_data
+        )
+        
+        # 4. Merge parameters prioritizing DB values and falling back to Gemini-enriched values for empty fields
+        merged_profile = {
+            'industry': existing_data['industry'] or enriched.get('industry') or 'Enterprise B2B Technology',
+            'company_size': existing_data['company_size'] or enriched.get('company_size') or '100 - 500 Employees',
+            'revenue_range': existing_data['revenue_range'] or enriched.get('revenue_range') or '$10M - $50M',
+            'employee_count': existing_data['employee_count'] or enriched.get('employee_count') or '150 - 500',
+            'target_account_focus': existing_data['target_account_focus'] or enriched.get('target_account_focus') or '',
+            'ideal_champion': existing_data['ideal_champion'] or enriched.get('ideal_champion') or 'Chief Revenue Officer',
+            'tech_stack': existing_data['tech_stack'] or enriched.get('tech_stack') or '',
+            'ai_confidence_score': 95,
+            'ai_confidence_reason': 'Prefetched from GtmPlan database template with Gemini parameter enrichment.'
+        }
+        
+        # Merge Personas: if DB list is empty, use Gemini's personas
+        final_personas = existing_data['personas'] if existing_data['personas'] else enriched.get('personas') or []
+        
+        # Merge Competitors: if DB list is empty, use Gemini's competitors
+        final_competitors = existing_data['competitors'] if existing_data['competitors'] else enriched.get('competitors') or []
+        
+        # Merge Buying Signals: if DB list is empty, use Gemini's buying signals
+        final_buying_signals = existing_data['buying_signals'] if existing_data['buying_signals'] else enriched.get('buying_signals') or []
+        buying_signals_data = {
+            'Business': final_buying_signals
+        }
+        
+        # Keywords generated by Gemini
+        keywords_data = enriched.get('categorized_keywords') or {
+            'Primary Discovery': [],
+            'Secondary Discovery': []
+        }
+        
+        # Save to database
+        save_ai_pulse_insights_orm(pulse, merged_profile, final_personas, final_competitors, keywords_data, buying_signals_data)
+        
+        # Populate text_content with a summary preview of the ICP definition
+        pulse.text_content = f"GTM Campaign Template: {name}\n\nTarget ICP Definition:\n{json.dumps(icp_def, indent=2)}"
+        pulse.save()
+        return
+
         
     result = None
     if raw_text.strip():
@@ -125,84 +251,5 @@ def generate_ai_pulse_insights(pulse):
         
         save_ai_pulse_insights_orm(pulse, comp_profile, personas, competitors, keywords, buying_signals)
         return
-
-    # Fallback to Mock
-    comp_profile = {
-        'industry': 'Healthcare Technology',
-        'company_size': '300–3000 Employees',
-        'revenue_range': '$50M - $500M',
-        'employee_count': '300-3000 employees',
-        'target_account_focus': 'Healthcare AI, Hospitals, North America, Clinical Operations, Revenue Cycle',
-        'ideal_champion': 'Chief Medical Officer, Chief Information Officer, VP Clinical Operations.',
-        'tech_stack': 'Epic Systems, Cerner, Athenahealth, Innovaccer, Health Catalyst',
-        'ai_confidence_score': 92,
-        'ai_confidence_reason': 'Manual mock context successfully matches GTM target structure.'
-    }
-    
-    personas = [
-        {
-            'role': 'Chief Medical Officer (CMO)',
-            'type': 'Economic Buyer',
-            'responsibilities': 'Clinical quality and outcomes management.',
-            'goals': 'Reduce clinical operations overhead.',
-            'roadblocks': 'Staff burnout, fragmented workflow tech.',
-            'pain_points': ['High operations cost', 'Inconsistent reporting']
-        },
-        {
-            'role': 'Chief Information Officer (CIO)',
-            'type': 'Technical Champion',
-            'responsibilities': 'EHR administration and health IT integrations.',
-            'goals': 'Accelerate digital transformation.',
-            'roadblocks': 'Integration backlogs.',
-            'pain_points': ['EHR interoperability hurdles']
-        },
-        {
-            'role': 'VP Clinical Operations',
-            'type': 'Decision Maker',
-            'responsibilities': 'Staff workflow automation.',
-            'goals': 'Improve clinical shift efficiency.',
-            'roadblocks': 'Manual scheduling.',
-            'pain_points': ['Low shifts conversion']
-        },
-        {
-            'role': 'Revenue Cycle Director',
-            'type': 'Decision Maker',
-            'responsibilities': 'Maximize claims collection.',
-            'goals': 'Reduce claim rejection rates.',
-            'roadblocks': 'Billing process delay.',
-            'pain_points': ['Denied claims latency']
-        },
-        {
-            'role': 'Director of Digital Transformation',
-            'type': 'Influencer',
-            'responsibilities': 'Scouting AI adoption projects.',
-            'goals': 'Deliver pilot ROI.',
-            'roadblocks': 'Long onboarding time.',
-            'pain_points': ['Slow technology deployment']
-        }
-    ]
-    
-    competitors = ['Epic Systems', 'Cerner', 'Athenahealth', 'Innovaccer', 'Health Catalyst']
-    keywords = {
-        "Primary Discovery": [
-            "AI-powered healthcare analytics", 
-            "Clinical workflow automation software", 
-            "Healthcare operational intelligence", 
-            "Healthcare revenue cycle optimization",
-            "Hospital operational efficiency solutions"
-        ],
-        "Secondary Discovery": [
-            "EHR interoperability solutions", 
-            "Predictive patient monitoring systems", 
-            "Clinical decision support software", 
-            "Healthcare GTM modernization tools"
-        ]
-    }
-    
-    buying_signals = {
-        "Organizational": ["Hospital expansion", "Health system mergers & acquisitions", "Clinical leadership hiring"],
-        "Technology": ["AI adoption", "Cloud migration", "EHR modernization"],
-        "Business": ["Workflow automation initiatives", "Predictive analytics investment"]
-    }
-    
-    save_ai_pulse_insights_orm(pulse, comp_profile, personas, competitors, keywords, buying_signals)
+    else:
+        raise ValueError("Failed to extract GTM insights: Gemini API returned an empty or invalid response.")

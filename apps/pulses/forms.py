@@ -33,12 +33,26 @@ class ProspectPulseForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         organisation = kwargs.pop('organisation', None)
         super().__init__(*args, **kwargs)
+        
         choices = [('', "Select an existing proposal (ICP)...")]
+        try:
+            # Fetch using raw SQL cursor to avoid Django model/migration dependency
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT id, name FROM gtm_gtmplan ORDER BY name")
+                for row in cursor.fetchall():
+                    choices.append((str(row[0]), row[1]))
+        except Exception:
+            pass
+            
         self.fields['from_document'].choices = choices
         
         # Populate from_document if editing an existing instance
-        if self.instance and self.instance.pk and self.instance.from_document_id:
-            self.fields['from_document'].initial = self.instance.from_document_id
+        if self.instance and self.instance.pk:
+            if self.instance.from_document_id:
+                self.fields['from_document'].initial = str(self.instance.from_document_id)
+            # Disable start_date as it cannot be changed in edit mode
+            self.fields['start_date'].disabled = True
 
     def clean(self):
         cleaned_data = super().clean()

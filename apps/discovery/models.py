@@ -122,3 +122,19 @@ class Correction(models.Model):
 
     def __str__(self):
         return f"Correction for Article #{self.article.id}"
+
+
+class Notification(models.Model):
+    """
+    Stores system notifications for campaign/discovery status updates.
+    """
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"

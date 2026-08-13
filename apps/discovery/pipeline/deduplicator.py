@@ -26,6 +26,15 @@ try:
 except ImportError:
     SKLEARN_AVAILABLE = False
 
+try:
+    import spacy
+    # Load small english model with only tagger and NER for max performance
+    nlp = spacy.load("en_core_web_sm", disable=["parser", "lemmatizer", "attribute_ruler"])
+    SPACY_AVAILABLE = True
+except Exception:
+    nlp = None
+    SPACY_AVAILABLE = False
+
 from .relevance_engine import RelevanceEngine
 from . import llm_relevance_judge
 from apps.discovery.models import Article
@@ -33,6 +42,7 @@ from apps.discovery.models import Article
 class Deduplicator:
     def __init__(self, time_window_days=14):
         self.time_window_days = time_window_days
+        self.current_run_articles = []
         self.model = None
         self.tfidf_vectorizer = None
         self.stop_proper = {
@@ -62,6 +72,13 @@ class Deduplicator:
             'yet', 'nor', 'out', 'off', 'sales', 'automation', 'round', 'rounds', 'pre', 'series', 'seed', 'crore',
             'lakh', 'lakhs', 'crores', 'funding', 'fundraise', 'fundraises', 'funded', 'invests', 'invest',
         }
+
+        # Verify that at least one semantic library is available
+        if not SENTENCE_TRANSFORMERS_AVAILABLE and not SKLEARN_AVAILABLE:
+            raise ImportError(
+                "Deduplication setup failed: Neither 'sentence-transformers' nor 'scikit-learn' is installed. "
+                "Please run 'pip install scikit-learn' to enable TF-IDF semantic checking."
+            )
 
         # Initialize local SentenceTransformer if available
         if SENTENCE_TRANSFORMERS_AVAILABLE and SentenceTransformer:
@@ -106,6 +123,58 @@ class Deduplicator:
             })
         return res
 
+    def get_proper_nouns(self, title, desc):
+        """Extract proper entities using spaCy NER (if available) or an improved Title-Case-aware regex fallback."""
+        cleaned_title = self.clean_rss_text(title)
+        cleaned_desc = self.clean_rss_text(desc or "")
+        
+        # 1. Use spaCy if loaded
+        if SPACY_AVAILABLE and nlp:
+            try:
+                text = f"{cleaned_title}. {cleaned_desc}"
+                doc = nlp(text)
+                entities = set()
+                for ent in doc.ents:
+                    if ent.label_ in ("ORG", "PERSON", "GPE"):
+                        # Split multi-word entities to allow token-based overlap checks
+                        for token in ent.text.split():
+                            clean_tok = re.sub(r'\W+', '', token).lower()
+                            if len(clean_tok) > 1 and clean_tok not in self.stop_proper:
+                                entities.add(clean_tok)
+                if entities:
+                    return entities
+            except Exception as e:
+                print(f"Deduplicator: spaCy entity extraction failed: {e}")
+
+        # 2. Fallback: Improved Title Case aware Regex Proper Noun Detector
+        title_words = re.findall(r'\b[a-zA-Z0-9]+\b', cleaned_title)
+        capitalized_title_words = [w for w in title_words if w[0].isupper()] if title_words else []
+        is_title_case = len(capitalized_title_words) / len(title_words) >= 0.6 if title_words else False
+
+        title_proper = set(re.findall(r'\b[A-Z][a-zA-Z0-9]{1,}\b', cleaned_title))
+        desc_proper = set(re.findall(r'\b[A-Z][a-zA-Z0-9]{1,}\b', cleaned_desc)) if cleaned_desc else set()
+        proper_nouns = set()
+        
+        for w in title_proper:
+            w_lower = w.lower()
+            if w_lower in self.stop_proper:
+                continue
+            
+            if is_title_case:
+                # In Title Case, the word must also be capitalized in the description (proving it is a proper noun)
+                # or if the description is empty (meaning we can't cross-reference, so we trust it)
+                if w in desc_proper or not cleaned_desc:
+                    proper_nouns.add(w_lower)
+            else:
+                proper_nouns.add(w_lower)
+
+        for w in desc_proper:
+            w_lower = w.lower()
+            if w_lower not in self.stop_proper:
+                proper_nouns.add(w_lower)
+
+        return proper_nouns
+
     def check_entity_time_overlap(self, art1, art2):
         """
         Check if two articles discuss the same proper entities within a short timeframe.
@@ -128,13 +197,8 @@ class Deduplicator:
         if abs((d1 - d2).days) > 14:
             return False, None
             
-        def get_proper_nouns(title, desc):
-            text = f"{title} {desc}"
-            words = set(re.findall(r'\b[A-Z][a-zA-Z0-9]{1,}\b', text))
-            return {w.lower() for w in words if w.lower() not in self.stop_proper}
-            
-        p1 = get_proper_nouns(self.clean_rss_text(art1['title']), self.clean_rss_text(art1.get('description', '')))
-        p2 = get_proper_nouns(self.clean_rss_text(art2['title']), self.clean_rss_text(art2.get('description', '')))
+        p1 = self.get_proper_nouns(art1['title'], art1.get('description', ''))
+        p2 = self.get_proper_nouns(art2['title'], art2.get('description', ''))
         
         if not p1 or not p2:
             return False, None
@@ -184,33 +248,6 @@ class Deduplicator:
             
         return False, None
 
-    def calculate_pure_python_cosine(self, text1, text2):
-        """Pure python fallback to calculate cosine similarity between two texts based on term frequency"""
-        def get_word_freq(text):
-            words = re.findall(r'\w+', text.lower())
-            freq = {}
-            for w in words:
-                if len(w) > 2:
-                    freq[w] = freq.get(w, 0) + 1
-            return freq
-
-        f1 = get_word_freq(text1)
-        f2 = get_word_freq(text2)
-
-        intersection = set(f1.keys()) & set(f2.keys())
-        if not intersection:
-            return 0.0
-            
-        numerator = sum([f1[w] * f2[w] for w in intersection])
-
-        sum1 = sum([f1[w]**2 for w in f1.keys()])
-        sum2 = sum([f2[w]**2 for w in f2.keys()])
-        denominator = math.sqrt(sum1) * math.sqrt(sum2)
-
-        if not denominator:
-            return 0.0
-        return float(numerator) / denominator
-
     def clean_rss_text(self, text):
         """Strip common Google News RSS suffixes like ' - Source' or '  Source'"""
         if not text:
@@ -252,29 +289,48 @@ class Deduplicator:
             article_data['total_tokens'] = 0
 
         # Layer 1: URL match check
+        url_match = False
+        matched_original = None
+        
+        # Check database
         existing_matches = Article.objects.filter(pulse=pulse, url=url)
         if article_data.get('id'):
             existing_matches = existing_matches.exclude(id=article_data['id'])
+        db_match = existing_matches.first()
         
-        match = existing_matches.first()
-        if match:
+        if db_match:
+            url_match = True
+            matched_original = {
+                'id': db_match.id,
+                'is_relevant': db_match.is_relevant,
+                'relevance_score': db_match.relevance_score,
+                'buying_signal': db_match.buying_signal,
+                'relevance_tier': db_match.relevance_tier,
+                'relevance_reason': db_match.relevance_reason
+            }
+        else:
+            # Check current run's memory cache
+            for cached in self.current_run_articles:
+                if cached.get('url') == url:
+                    url_match = True
+                    matched_original = cached
+                    break
+                    
+        if url_match:
             article_data['is_duplicate'] = True
-            article_data['matched_original_id'] = match.id
+            article_data['matched_original_id'] = matched_original.get('id')
             article_data['duplicate_reason'] = "Layer 1: URL Hash Match"
-            copy_relevance_from_original({
-                'is_relevant': match.is_relevant,
-                'relevance_score': match.relevance_score,
-                'buying_signal': match.buying_signal,
-                'relevance_tier': match.relevance_tier,
-                'relevance_reason': match.relevance_reason
-            })
+            copy_relevance_from_original(matched_original)
             return article_data
             
         recent_articles = self.get_recent_articles(pulse, exclude_id=article_data.get('id'))
+        if self.current_run_articles:
+            recent_articles.extend(self.current_run_articles)
+            
         if not recent_articles:
             if self.model:
                 try:
-                    emb = self.model.encode(cleaned_desc)
+                    emb = self.model.encode(cleaned_desc, show_progress_bar=False)
                     article_data['embedding'] = emb.tobytes()
                 except Exception:
                     pass
@@ -308,7 +364,7 @@ class Deduplicator:
 
                 if self.model:
                     try:
-                        new_emb = self.model.encode(cleaned_desc)
+                        new_emb = self.model.encode(cleaned_desc, show_progress_bar=False)
                         article_data['embedding'] = new_emb.tobytes()
                         if gate_recent_articles:
                             for existing in gate_recent_articles:
@@ -336,58 +392,66 @@ class Deduplicator:
                     except Exception as e:
                         print(f"Deduplicator: Error in TF-IDF cosine check: {e}")
                         max_similarity = 0.0
-                elif gate_recent_articles:
-                    for existing in gate_recent_articles:
-                        existing_cleaned_desc = self.clean_rss_text(existing['description'])
-                        sim = self.calculate_pure_python_cosine(cleaned_desc, existing_cleaned_desc)
-                        if sim > max_similarity:
-                            max_similarity = sim
-                            best_match = existing
-
-                if max_similarity >= 0.80:
+                # Near-Dup Thresholds:
+                # 1. Cosine >= 0.88 (Same story): Always duplicate, bypass LLM.
+                # 2. Cosine between 0.75 and 0.88 (Potential update): Check for new facts.
+                #    - If new facts: keep as unique update (is_duplicate = False, set delta_summary).
+                #    - If no new facts: mark as duplicate, copy relevance.
+                # 3. Cosine < 0.75: Unique article, always goes to LLM.
+                if max_similarity >= 0.88:
                     article_data['is_duplicate'] = True
                     article_data['matched_original_id'] = best_match['id']
-                    article_data['duplicate_reason'] = f"Layer 3: Semantic Match ({int(max_similarity * 100)}%)"
-                    
+                    article_data['duplicate_reason'] = f"Layer 3: Same Story Match ({int(max_similarity * 100)}%)"
+                    copy_relevance_from_original(best_match)
+                    return article_data
+                
+                elif max_similarity >= 0.75:
                     has_delta, delta_summary = self.check_new_facts_local(best_match['description'], desc)
                     if has_delta:
                         article_data['is_duplicate'] = False
+                        article_data['matched_original_id'] = best_match['id']
                         article_data['delta_summary'] = delta_summary
+                        article_data['duplicate_reason'] = f"Layer 3: Potential Update with New Facts ({int(max_similarity * 100)}%)"
                     else:
+                        article_data['is_duplicate'] = True
+                        article_data['matched_original_id'] = best_match['id']
+                        article_data['duplicate_reason'] = f"Layer 3: Potential Update - No New Facts ({int(max_similarity * 100)}%)"
                         copy_relevance_from_original(best_match)
                         return article_data
 
         # Run LLM classification for unique articles & updates
-        try:
-            res = llm_relevance_judge.classify_article(
-                title=title,
-                description=desc,
-                query_focus=query_focus,
-                query_keyword=article_data.get('query'),
-                source=article_data.get('source', ''),
-                pulse=pulse
-            )
-            article_data['is_relevant'] = bool(res.get('is_relevant', True))
-            article_data['relevance_score'] = res.get('relevance_score', 0)
-            article_data['buying_signal'] = res.get('buying_signal')
-            article_data['relevance_tier'] = res.get('relevance_tier', 'actionable')
-            article_data['relevance_reason'] = res.get('reason', '')
-            article_data['prompt_tokens'] = res.get('prompt_tokens', 0)
-            article_data['completion_tokens'] = res.get('completion_tokens', 0)
-            article_data['total_tokens'] = res.get('total_tokens', 0)
-        except Exception as e:
-            print(f"LLM Classification failed: {e}. Falling back to regex engine.")
-            fallback = RelevanceEngine()
-            is_rel, score, signal, tier = fallback.calculate_relevance_score(
-                title, desc, query_focus, article_data.get('query'), article_data.get('source', '')
-            )
-            article_data['is_relevant'] = bool(is_rel)
-            article_data['relevance_score'] = score
-            article_data['buying_signal'] = signal
-            article_data['relevance_tier'] = tier
-            article_data['relevance_reason'] = "Fallback regex match"
-            article_data['prompt_tokens'] = 0
-            article_data['completion_tokens'] = 0
-            article_data['total_tokens'] = 0
+        res = llm_relevance_judge.classify_article(
+            title=title,
+            description=desc,
+            query_focus=query_focus,
+            query_keyword=article_data.get('query'),
+            source=article_data.get('source', ''),
+            pulse=pulse
+        )
+        article_data['is_relevant'] = bool(res.get('is_relevant', True))
+        article_data['relevance_score'] = res.get('relevance_score', 0)
+        article_data['buying_signal'] = res.get('buying_signal')
+        article_data['relevance_tier'] = res.get('relevance_tier', 'actionable')
+        article_data['relevance_reason'] = res.get('reason', '')
+        article_data['prompt_tokens'] = res.get('prompt_tokens', 0)
+        article_data['completion_tokens'] = res.get('completion_tokens', 0)
+        article_data['total_tokens'] = res.get('total_tokens', 0)
 
         return article_data
+
+    def register_processed_article(self, article_obj):
+        """Register the newly saved database article in the deduplicator's in-memory cache"""
+        self.current_run_articles.append({
+            'id': article_obj.id,
+            'title': article_obj.title,
+            'url': article_obj.url,
+            'description': article_obj.description,
+            'embedding': article_obj.embedding,
+            'publication_date': article_obj.publication_date,
+            'scraped_at': article_obj.scraped_at.isoformat() if article_obj.scraped_at else None,
+            'is_relevant': article_obj.is_relevant,
+            'relevance_score': article_obj.relevance_score,
+            'buying_signal': article_obj.buying_signal,
+            'relevance_tier': article_obj.relevance_tier,
+            'relevance_reason': article_obj.relevance_reason
+        })

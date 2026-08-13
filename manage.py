@@ -10,7 +10,7 @@ def main():
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).resolve().parent / '.env')
     
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'prospect_pulse_project.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'prospect_pulse.settings')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

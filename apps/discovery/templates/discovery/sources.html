@@ -1,0 +1,804 @@
+{% extends "dashboard/base.html" %} {% load static %} {% block content %}
+<link rel="stylesheet" href="{% static 'discovery/css/sources.css' %}" />
+<div style="padding: 24px">
+  <!-- Header Section -->
+  <div class="ll-hero" style="margin-bottom: 24px">
+    <div class="ll-hero-glow"></div>
+    <div class="ll-hero-inner">
+      <div>
+        <h1 class="ll-hero-title">
+          Sources
+          <span class="ll-hero-count">{{ counts.total }}</span>
+        </h1>
+        <p class="ll-hero-sub">
+          Scraped sources, duplicates, and rejected noise articles from
+          campaigns.
+        </p>
+      </div>
+      <div class="ll-hero-actions">
+        <a
+          href="{% url 'prospect_pulse:prospect_pulse_detail' pulse.uid %}"
+          class="btn btn-secondary btn-sm"
+          style="
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(212, 0, 0, 0.04);
+            font-weight: 700;
+          "
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Back to Pulse
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert Box Container -->
+  <div
+    id="quota-alert-banner"
+    class="alert-banner"
+    style="display: {% if run_error %}flex{% else %}none{% endif %};"
+  >
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.5"
+      style="flex-shrink: 0"
+    >
+      <path
+        d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+      />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+    <span id="quota-alert-message" style="flex-grow: 1"
+      >{% if run_error %}{{ run_error }}{% else %}API Quota Exceeded. Please
+      check your Google AI Studio spend caps.{% endif %}</span
+    >
+    <button
+      type="button"
+      onclick="this.parentElement.style.display = 'none'"
+      style="
+        margin-left: auto;
+        background: none;
+        border: none;
+        color: inherit;
+        font-size: 18px;
+        font-weight: bold;
+        cursor: pointer;
+        line-height: 1;
+        opacity: 0.6;
+        padding: 0;
+        transition: opacity 0.2s;
+      "
+      onmouseover="this.style.opacity = '1'"
+      onmouseout="this.style.opacity = '0.6'"
+    >
+      &times;
+    </button>
+  </div>
+
+  <!-- KPI Cards Row -->
+  <div class="row g-4 mb-4">
+    <!-- Card 1: High Intent -->
+    <div class="col-md-4">
+      <div
+        class="detail-card"
+        style="border-left: 4px solid var(--success); padding: 20px"
+      >
+        <div
+          style="
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            tracking: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+          "
+        >
+          <div
+            style="
+              width: 6px;
+              height: 6px;
+              border-radius: 50%;
+              background: var(--success);
+            "
+          ></div>
+          High Intent Articles
+        </div>
+        <div
+          style="
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1;
+          "
+        >
+          {{ counts.intent }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Duplicates -->
+    <div class="col-md-4">
+      <div
+        class="detail-card"
+        style="border-left: 4px solid var(--info); padding: 20px"
+      >
+        <div
+          style="
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            tracking: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+          "
+        >
+          <div
+            style="
+              width: 6px;
+              height: 6px;
+              border-radius: 50%;
+              background: var(--info);
+            "
+          ></div>
+          Duplicate Articles
+        </div>
+        <div
+          style="
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1;
+          "
+        >
+          {{ counts.duplicate }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Filtered Noise -->
+    <div class="col-md-4">
+      <div
+        class="detail-card"
+        style="border-left: 4px solid var(--muted); padding: 20px"
+      >
+        <div
+          style="
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            tracking: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+          "
+        >
+          <div
+            style="
+              width: 6px;
+              height: 6px;
+              border-radius: 50%;
+              background: var(--muted);
+            "
+          ></div>
+          Filtered Noise
+        </div>
+        <div
+          style="
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text);
+            line-height: 1;
+          "
+        >
+          {{ counts.noise }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs Navigation & Sorting -->
+  <div
+    style="
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    "
+  >
+    <div style="display: flex; gap: 16px">
+      <button
+        id="btn-intent"
+        class="sub-nav-btn active"
+        onclick="switchSubView('intent')"
+        style="
+          background: none;
+          border: none;
+          padding: 12px 4px;
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        "
+      >
+        High Intent
+        <span
+          style="
+            background: rgba(34, 197, 94, 0.08);
+            color: var(--success);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 10px;
+          "
+          >{{ counts.intent }}</span
+        >
+      </button>
+      <button
+        id="btn-duplicate"
+        class="sub-nav-btn"
+        onclick="switchSubView('duplicate')"
+        style="
+          background: none;
+          border: none;
+          padding: 12px 4px;
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        "
+      >
+        Duplicate Articles
+        <span
+          style="
+            background: rgba(59, 130, 246, 0.08);
+            color: var(--info);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 10px;
+          "
+          >{{ counts.duplicate }}</span
+        >
+      </button>
+      <button
+        id="btn-noise"
+        class="sub-nav-btn"
+        onclick="switchSubView('noise')"
+        style="
+          background: none;
+          border: none;
+          padding: 12px 4px;
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        "
+      >
+        Filtered Noise
+        <span
+          style="
+            background: rgba(100, 116, 139, 0.08);
+            color: var(--muted);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 10px;
+          "
+          >{{ counts.noise }}</span
+        >
+      </button>
+    </div>
+
+    <!-- Dynamic Sort Dropdown -->
+    <div
+      style="display: flex; align-items: center; gap: 8px; padding-bottom: 8px"
+    >
+      <span style="font-size: 12px; color: var(--muted); font-weight: 600"
+        >Sort By:</span
+      >
+      <select
+        id="sortArticles"
+        onchange="sortActivePanel()"
+        style="
+          font-size: 12px;
+          padding: 6px 12px;
+          border-radius: 8px;
+          border: 1px solid var(--border);
+          background: var(--surface);
+          color: var(--text);
+          font-weight: 700;
+          cursor: pointer;
+          outline: none;
+          transition: border-color 0.2s;
+        "
+      >
+        <option value="pub-desc" selected>Published Date (Newest)</option>
+        <option value="pub-asc">Published Date (Oldest)</option>
+        <option value="scrap-desc">Scraped Date (Newest)</option>
+        <option value="scrap-asc">Scraped Date (Oldest)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Tab Panel: High Intent -->
+  <div id="panel-intent" class="view-panel active">
+    <div class="detail-card">
+      <div style="overflow-x: auto">
+        <table
+          id="table-intent"
+          style="
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 12.5px;
+          "
+        >
+          <thead>
+            <tr
+              style="
+                border-bottom: 1px solid var(--border);
+                color: var(--muted);
+                font-weight: 700;
+              "
+            >
+              <th style="padding: 12px 16px">ARTICLE</th>
+              <th style="padding: 12px 16px">SOURCE</th>
+              <th style="padding: 12px 16px">SUMMARY</th>
+              <th style="padding: 12px 16px">BUYING SIGNAL</th>
+              <th style="padding: 12px 16px; text-align: center">SCORE</th>
+              <th style="padding: 12px 16px">PUBLISHED DATE</th>
+              <th style="padding: 12px 16px">SCRAPED DATE</th>
+            </tr>
+          </thead>
+          <tbody class="article-tbody">
+            {% if intent_articles %} {% for art in intent_articles %}
+            <tr
+              class="article-row"
+              data-published="{{ art.publication_date|default:'' }}"
+              data-scraped="{{ art.scraped_at|date:'U' }}"
+              style="
+                border-bottom: 1px solid var(--border);
+                vertical-align: middle;
+              "
+            >
+              <td
+                style="padding: 14px 16px; font-weight: 700; max-width: 400px"
+              >
+                <a
+                  href="{{ art.url }}"
+                  target="_blank"
+                  style="color: var(--accent); text-decoration: none"
+                  >{{ art.title }}</a
+                >
+              </td>
+              <td style="padding: 14px 16px; color: var(--text)">
+                {{ art.source }}
+              </td>
+              <td style="padding: 14px 16px">
+                {% if art.executive_summary %}
+                <button
+                  class="btn btn-secondary btn-sm btn-view-summary"
+                  data-summary="{{ art.executive_summary|escapejs }}"
+                  style="
+                    font-size: 11px;
+                    padding: 4px 10px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    border-radius: 6px;
+                    border-color: rgba(212, 0, 0, 0.15);
+                    color: var(--accent);
+                    background: transparent;
+                    font-weight: 700;
+                  "
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  View Summary
+                </button>
+                {% else %}
+                <button
+                  class="btn-summarize-premium btn-summarize-manual"
+                  data-id="{{ art.id }}"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"
+                    />
+                  </svg>
+                  Summarize AI
+                </button>
+                {% endif %}
+              </td>
+              <td style="padding: 14px 16px">
+                <span
+                  style="
+                    background: rgba(34, 197, 94, 0.08);
+                    color: var(--success);
+                    font-weight: 700;
+                    padding: 2px 8px;
+                    border-radius: 12px;
+                    font-size: 11px;
+                  "
+                >
+                  {{ art.buying_signal|default:'Signal' }}
+                </span>
+              </td>
+              <td
+                style="
+                  padding: 14px 16px;
+                  text-align: center;
+                  font-weight: 800;
+                  color: var(--text);
+                "
+              >
+                {{ art.relevance_score }}/100
+              </td>
+              <td style="padding: 14px 16px; color: var(--text)">
+                {{ art.publication_date|default:'—' }}
+              </td>
+              <td style="padding: 14px 16px; color: var(--muted)">
+                {{ art.scraped_at|date:"Y-m-d H:i" }}
+              </td>
+            </tr>
+            {% endfor %} {% else %}
+            <tr>
+              <td
+                colspan="7"
+                style="
+                  padding: 40px;
+                  text-align: center;
+                  color: var(--muted);
+                  font-style: italic;
+                "
+              >
+                No high intent articles identified yet.
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Panel: Duplicates -->
+  <div id="panel-duplicate" class="view-panel">
+    <div class="detail-card">
+      <div style="overflow-x: auto">
+        <table
+          id="table-duplicate"
+          style="
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 12.5px;
+          "
+        >
+          <thead>
+            <tr
+              style="
+                border-bottom: 1px solid var(--border);
+                color: var(--muted);
+                font-weight: 700;
+              "
+            >
+              <th style="padding: 12px 16px">ARTICLE</th>
+              <th style="padding: 12px 16px">SOURCE</th>
+              <th style="padding: 12px 16px">PUBLISHED DATE</th>
+              <th style="padding: 12px 16px">SCRAPED DATE</th>
+              <th style="padding: 12px 16px; text-align: right">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody class="article-tbody">
+            {% if deduplicated_sources %} {% for art in deduplicated_sources %}
+            <tr
+              class="article-row"
+              data-published="{{ art.publication_date|default:'' }}"
+              data-scraped="{{ art.scraped_at|date:'U' }}"
+              style="
+                border-bottom: 1px solid var(--border);
+                vertical-align: middle;
+              "
+            >
+              <td
+                style="padding: 14px 16px; font-weight: 700; max-width: 400px"
+              >
+                <a
+                  href="{{ art.url }}"
+                  target="_blank"
+                  style="color: var(--text); text-decoration: none"
+                  >{{ art.title }}</a
+                >
+              </td>
+              <td style="padding: 14px 16px; color: var(--text)">
+                {{ art.source }}
+              </td>
+              <td style="padding: 14px 16px; color: var(--text)">
+                {{ art.publication_date|default:'—' }}
+              </td>
+              <td style="padding: 14px 16px; color: var(--muted)">
+                {{ art.scraped_at|date:"Y-m-d H:i" }}
+              </td>
+              <td style="padding: 14px 16px; text-align: right">
+                <button
+                  class="btn-move-intent-premium btn-move-intent"
+                  data-id="{{ art.id }}"
+                >
+                  Move to High Intent
+                </button>
+              </td>
+            </tr>
+            {% endfor %} {% else %}
+            <tr>
+              <td
+                colspan="5"
+                style="
+                  padding: 40px;
+                  text-align: center;
+                  color: var(--muted);
+                  font-style: italic;
+                "
+              >
+                No duplicate articles recorded.
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Panel: Filtered Noise -->
+  <div id="panel-noise" class="view-panel">
+    <div class="detail-card">
+      <div style="overflow-x: auto">
+        <table
+          id="table-noise"
+          style="
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 12.5px;
+          "
+        >
+          <thead>
+            <tr
+              style="
+                border-bottom: 1px solid var(--border);
+                color: var(--muted);
+                font-weight: 700;
+              "
+            >
+              <th style="padding: 12px 16px">ARTICLE</th>
+              <th style="padding: 12px 16px">SOURCE</th>
+              <th style="padding: 12px 16px">REJECT REASON</th>
+              <th style="padding: 12px 16px">PUBLISHED DATE</th>
+              <th style="padding: 12px 16px">SCRAPED DATE</th>
+              <th style="padding: 12px 16px; text-align: right">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody class="article-tbody">
+            {% if noise_articles %} {% for art in noise_articles %}
+            <tr
+              class="article-row"
+              data-published="{{ art.publication_date|default:'' }}"
+              data-scraped="{{ art.scraped_at|date:'U' }}"
+              style="
+                border-bottom: 1px solid var(--border);
+                vertical-align: middle;
+              "
+            >
+              <td style="padding: 14px 16px; max-width: 400px">
+                <a
+                  href="{{ art.url }}"
+                  target="_blank"
+                  style="
+                    color: var(--muted);
+                    text-decoration: none;
+                    font-weight: 600;
+                  "
+                  >{{ art.title }}</a
+                >
+              </td>
+              <td style="padding: 14px 16px; color: var(--muted)">
+                {{ art.source }}
+              </td>
+              <td
+                style="
+                  padding: 14px 16px;
+                  color: var(--muted);
+                  font-style: italic;
+                "
+              >
+                {{ art.relevance_reason|default:'No signal matches' }}
+              </td>
+              <td style="padding: 14px 16px; color: var(--text)">
+                {{ art.publication_date|default:'—' }}
+              </td>
+              <td style="padding: 14px 16px; color: var(--muted)">
+                {{ art.scraped_at|date:"Y-m-d H:i" }}
+              </td>
+              <td style="padding: 14px 16px; text-align: right">
+                <button
+                  class="btn-move-intent-premium btn-move-intent"
+                  data-id="{{ art.id }}"
+                >
+                  Move to High Intent
+                </button>
+              </td>
+            </tr>
+            {% endfor %} {% else %}
+            <tr>
+              <td
+                colspan="6"
+                style="
+                  padding: 40px;
+                  text-align: center;
+                  color: var(--muted);
+                  font-style: italic;
+                "
+              >
+                No rejected noise articles.
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'discovery/js/sources.js' %}"></script>
+
+<!-- Custom Summary Modal -->
+<div
+  id="summaryModal"
+  class="custom-confirm-overlay"
+  style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  "
+>
+  <div
+    class="custom-confirm-box"
+    style="
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      max-width: 550px;
+      width: 90%;
+      padding: 30px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      text-align: left;
+    "
+  >
+    <h4
+      style="
+        font-weight: 800;
+        font-size: 18px;
+        margin-bottom: 12px;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      "
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--accent)"
+        stroke-width="2.5"
+      >
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+      </svg>
+      Executive Summary
+    </h4>
+
+    <div
+      id="summary-modal-content"
+      style="
+        font-size: 13.5px;
+        color: var(--text);
+        line-height: 1.6;
+        margin-bottom: 24px;
+        background: rgba(0, 0, 0, 0.02);
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        max-height: 250px;
+        overflow-y: auto;
+        word-break: break-word;
+        white-space: pre-wrap;
+      "
+    >
+      <!-- Populated dynamically -->
+    </div>
+
+    <div style="display: flex; justify-content: flex-end">
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        style="padding: 8px 18px; font-size: 13px"
+        onclick="document.getElementById('summaryModal').style.display = 'none'"
+      >
+        Close Summary
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
