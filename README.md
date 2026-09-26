@@ -1,8 +1,9 @@
 # Prospect Pulse v2
+### An Agentyne Inc. Product
 
 > **Autonomous B2B Intelligence, Competitive Surveillance & AI Research Analyst Platform**
 
-Prospect Pulse is an enterprise intelligence engine designed to turn raw global market signals into high-converting commercial opportunities. By operating as an autonomous, 24/7 AI Research Analyst, Prospect Pulse eliminates manual market research, continuously monitors industry ecosystems, and identifies high-intent target accounts and key decision-makers.
+Developed by **Agentyne Inc.**, Prospect Pulse is an enterprise intelligence engine designed to turn raw global market signals into high-converting commercial opportunities. By operating as an autonomous, 24/7 AI Research Analyst, Prospect Pulse eliminates manual market research, continuously monitors industry ecosystems, and identifies high-intent target accounts and key decision-makers.
 
 ---
 
@@ -43,5 +44,5 @@ Prospect Pulse is an enterprise intelligence engine designed to turn raw global 
 ---
 
 ## License & Confidentiality
-Copyright &copy; 2026 Prospect Pulse. All rights reserved.  
-*Confidential and proprietary software. Unauthorized reproduction, distribution, or reverse engineering is strictly prohibited.*
+Copyright &copy; 2026 **Agentyne Inc.** All rights reserved.  
+*Prospect Pulse is a proprietary product of Agentyne Inc. Confidential and proprietary software. Unauthorized reproduction, distribution, or reverse engineering is strictly prohibited.*
