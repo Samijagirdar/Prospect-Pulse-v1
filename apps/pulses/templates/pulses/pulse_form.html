@@ -1,5 +1,4 @@
 {% extends "dashboard/base.html" %} {% load static %}
-{% block title %}{{ title }}{% endblock %}
 {% block topbar_title %}{{ title }}{% endblock %} {% block topbar_sub %}
 <a
   href="{% url 'prospect_pulse:prospect_pulse_list' %}"
@@ -15,7 +14,96 @@
 >
   <polyline points="9 18 15 12 9 6" />
 </svg>
-{{ title }} {% endblock %} {% block content %}
+{{ title }} {% endblock %}
+
+{% block extra_css %}
+<style>
+/* Toast Alert Banner */
+.alert-banner {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 99999;
+  max-width: 420px;
+  width: 90%;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  border-radius: 12px;
+  padding: 14px 20px;
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.3),
+    0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  color: #f87171;
+  font-weight: 600;
+  font-size: 13px;
+  align-items: center;
+  gap: 12px;
+  animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Alert Toast Banner (Styled like leads/sources) -->
+<div
+  id="quota-alert-banner"
+  class="alert-banner"
+  style="display: none;"
+>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.5"
+    style="flex-shrink: 0"
+  >
+    <path
+      d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+    />
+    <line x1="12" y1="9" x2="12" y2="13" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+  <span id="quota-alert-message" style="flex-grow: 1"></span>
+  <button
+    type="button"
+    onclick="dismissToastAlert()"
+    style="
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 1;
+      opacity: 0.6;
+      padding: 0;
+      transition: opacity 0.2s;
+    "
+    onmouseover="this.style.opacity = '1'"
+    onmouseout="this.style.opacity = '0.6'"
+  >
+    &times;
+  </button>
+</div>
+
 <div class="ll-hero">
   <div class="ll-hero-glow"></div>
   <div class="ll-hero-inner">
@@ -50,6 +138,56 @@
       <div class="card-title">{{ title }}</div>
       <div class="card-sub">Configure your prospect monitoring settings</div>
     </div>
+    <div class="d-flex align-items-center gap-2">
+      {% if next_page == 'detail' and pulse_id %}
+      <a
+        href="{% url 'prospect_pulse:prospect_pulse_detail' pulse_id %}"
+        class="btn btn-secondary btn-sm"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          style="width: 12px; height: 12px"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Details
+      </a>
+      <a
+        href="{% url 'prospect_pulse:prospect_pulse_list' %}"
+        class="btn btn-secondary btn-sm"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          style="width: 12px; height: 12px"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to List
+      </a>
+      {% else %}
+      <a
+        href="{% url 'prospect_pulse:prospect_pulse_list' %}"
+        class="btn btn-secondary btn-sm"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          style="width: 12px; height: 12px"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to List
+      </a>
+      {% endif %}
+    </div>
   </div>
   <div class="card-body">
     <form
@@ -58,6 +196,7 @@
       id="pulseForm"
       action="?next={{ next_page|default:'detail' }}"
       data-initial-input-type="{{ form.instance.input_type|default:''|escapejs }}"
+      {% if form.instance.pk %}data-is-edit="true"{% endif %}
     >
       {% csrf_token %} {% if form.non_field_errors %}
       <div class="alert alert-danger">
@@ -65,9 +204,9 @@
       </div>
       {% endif %}
 
-      <!-- Row 1: Name + Frequency -->
+      <!-- Row 1: Name, Frequency, Historical Lookback -->
       <div class="row mb-3">
-        <div class="col-md-6">
+        <div class="col-md-4">
           <div class="form-group">
             <label for="{{ form.name.id_for_label }}" class="form-label"
               >Pulse Name <span style="color: var(--accent)">*</span></label
@@ -96,7 +235,7 @@
             </div>
           </div>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
           <div class="form-group">
             <label for="{{ form.frequency.id_for_label }}" class="form-label"
               >{{ form.frequency.label }}</label
@@ -105,6 +244,7 @@
               name="{{ form.frequency.name }}"
               class="form-select"
               id="{{ form.frequency.id_for_label }}"
+              {% if form.instance.pk %}disabled style="background-color: var(--card-bg, #1e293b); cursor: not-allowed; opacity: 0.7;" data-locked="true"{% endif %}
             >
               {% for value, label in form.frequency.field.choices %}
               <option
@@ -115,27 +255,46 @@
               </option>
               {% endfor %}
             </select>
+            {% if form.instance.pk %}
+            <div class="form-text" style="font-size: 11px; color: var(--muted)">
+              Cannot be changed in edit mode.
+            </div>
+            {% else %}
             <div class="form-text" style="font-size: 11px; color: var(--muted)">
               {{ form.frequency.help_text }}
             </div>
-            <div id="custom-days-container" class="mt-2" style="display: none">
-              <label for="custom_days" class="form-label">Number of days</label>
-              <input
-                type="number"
-                name="custom_days"
-                id="custom_days"
-                class="form-control"
-                min="1"
-                value="{{ form.custom_days.value|default:'1' }}"
-                {% if form.frequency.value != "custom" %}disabled{% endif %}
-              />
-              <div
-                class="form-text"
-                style="font-size: 11px; color: var(--muted)"
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="{{ form.historical_lookback.id_for_label }}" class="form-label"
+              >Historical Discovery Lookback</label
+            >
+            <select
+              name="{{ form.historical_lookback.name }}"
+              class="form-select"
+              id="{{ form.historical_lookback.id_for_label }}"
+              {% if form.instance.pk %}disabled style="background-color: var(--card-bg, #1e293b); cursor: not-allowed; opacity: 0.7;" data-locked="true"{% endif %}
+            >
+              {% for value, label in form.historical_lookback.field.choices %}
+              <option
+                value="{{ value }}"
+                {% if form.historical_lookback.value == value %}selected{% endif %}
               >
-                How often (in days) this pulse should run
-              </div>
+                {{ label }}
+              </option>
+              {% endfor %}
+            </select>
+            {% if form.instance.pk %}
+            <div class="form-text" style="font-size: 11px; color: var(--muted)">
+              Cannot be changed in edit mode.
             </div>
+            {% else %}
+            <div class="form-text" style="font-size: 11px; color: var(--muted)">
+              Initial discovery search range.
+            </div>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -145,29 +304,50 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="{{ form.start_date.id_for_label }}" class="form-label"
-              >{{ form.start_date.label }}</label
+              >{{ form.start_date.label }} <span style="color: var(--accent)">*</span></label
             >
-            {{ form.start_date }} {% if form.start_date.errors %}
+            <input
+              type="date"
+              name="{{ form.start_date.name }}"
+              class="form-control"
+              value="{{ form.start_date.value|date:'Y-m-d'|default:form.start_date.value|default:'' }}"
+              id="{{ form.start_date.id_for_label }}"
+              {% if form.instance.pk %}disabled style="background-color: var(--card-bg, #1e293b); cursor: not-allowed; opacity: 0.7;" data-locked="true"{% endif %}
+            />
+            {% if form.start_date.errors %}
             <div class="invalid-feedback d-block">
               {{ form.start_date.errors.0 }}
             </div>
             {% endif %}
+            {% if form.instance.pk %}
+            <div class="form-text" style="font-size: 11px; color: var(--muted)">
+              Start date is fixed and cannot be changed in edit mode.
+            </div>
+            {% else %}
             <div class="form-text" style="font-size: 11px; color: var(--muted)">
               {{ form.start_date.help_text }}
             </div>
+            {% endif %}
           </div>
         </div>
         <div class="col-md-6">
           <div class="form-group">
             <label for="{{ form.end_date.id_for_label }}" class="form-label"
-              >{{ form.end_date.label }}</label
+              >{{ form.end_date.label }} <span id="end_date_star" style="color: var(--accent); display: none;">*</span></label
             >
-            {{ form.end_date }} {% if form.end_date.errors %}
+            <input
+              type="date"
+              name="{{ form.end_date.name }}"
+              class="form-control"
+              value="{{ form.end_date.value|date:'Y-m-d'|default:form.end_date.value|default:'' }}"
+              id="{{ form.end_date.id_for_label }}"
+            />
+            {% if form.end_date.errors %}
             <div class="invalid-feedback d-block">
               {{ form.end_date.errors.0 }}
             </div>
             {% endif %}
-            <div class="form-text" style="font-size: 11px; color: var(--muted)">
+            <div id="end_date_help_text" class="form-text" style="font-size: 11px; color: var(--muted)">
               {{ form.end_date.help_text }}
             </div>
           </div>
@@ -209,7 +389,7 @@
         </div>
       </div>
 
-      <!-- Content Source -->
+      <!-- Target Geography (Optional) -->
       <div
         class="card mb-3"
         style="
@@ -219,10 +399,103 @@
         "
       >
         <div class="card-header" style="padding: 12px 16px">
-          <div class="card-title">Content Source</div>
+          <div class="card-title">Target Geography <span class="badge" style="background: rgba(99, 102, 241, 0.12); color: #6366f1; font-size: 10px; font-weight: 600; margin-left: 6px;">Optional</span></div>
           <div class="card-sub">
-            Choose exactly one source layout to extract the customer profile
-            from
+            Specify countries, regions, or cities to restrict company extraction. If left blank, companies globally will be discovered.
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="mb-0">
+            <label for="{{ form.target_geography.id_for_label }}" class="form-label"
+              >Target Countries / Regions / Cities</label
+            >
+            <div class="input-group mb-2">
+              {{ form.target_geography }}
+              <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 13px;">
+                <i class="bi bi-geo-alt me-1"></i> Add Region / City
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="max-height: 280px; overflow-y: auto; font-size: 13px;">
+                <li><h6 class="dropdown-header text-uppercase" style="font-size: 11px; letter-spacing: 0.5px;">North America</h6></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('United States')" data-geo="United States">United States</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('Canada')" data-geo="Canada">Canada</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('New York, NY')" data-geo="New York, NY">New York, NY</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('San Francisco, CA')" data-geo="San Francisco, CA">San Francisco, CA</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header text-uppercase" style="font-size: 11px; letter-spacing: 0.5px;">Europe & UK</h6></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('United Kingdom')" data-geo="United Kingdom">United Kingdom</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('London')" data-geo="London">London</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('Germany')" data-geo="Germany">Germany</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('France')" data-geo="France">France</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('European Union')" data-geo="European Union">European Union</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header text-uppercase" style="font-size: 11px; letter-spacing: 0.5px;">Asia-Pacific</h6></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('India')" data-geo="India">India</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('Bengaluru')" data-geo="Bengaluru">Bengaluru</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('Mumbai')" data-geo="Mumbai">Mumbai</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('Singapore')" data-geo="Singapore">Singapore</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('Australia')" data-geo="Australia">Australia</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('Japan')" data-geo="Japan">Japan</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header text-uppercase" style="font-size: 11px; letter-spacing: 0.5px;">Middle East & Africa</h6></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('United Arab Emirates')" data-geo="United Arab Emirates">United Arab Emirates (Dubai)</a></li>
+                <li><a class="dropdown-item geo-quick-add" href="javascript:void(0)" onclick="addGeographyTag('Saudi Arabia')" data-geo="Saudi Arabia">Saudi Arabia</a></li>
+              </ul>
+            </div>
+            <div class="d-flex flex-wrap gap-1 align-items-center mb-1">
+              <span style="font-size: 11px; color: var(--muted);" class="me-1">Suggestions:</span>
+              <button type="button" class="btn btn-sm btn-light geo-pill-btn" onclick="addGeographyTag('United States')" data-geo="United States" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">+ United States</button>
+              <button type="button" class="btn btn-sm btn-light geo-pill-btn" onclick="addGeographyTag('United Kingdom')" data-geo="United Kingdom" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">+ United Kingdom</button>
+              <button type="button" class="btn btn-sm btn-light geo-pill-btn" onclick="addGeographyTag('India')" data-geo="India" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">+ India</button>
+              <button type="button" class="btn btn-sm btn-light geo-pill-btn" onclick="addGeographyTag('Singapore')" data-geo="Singapore" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">+ Singapore</button>
+              <button type="button" class="btn btn-sm btn-light geo-pill-btn" onclick="addGeographyTag('European Union')" data-geo="European Union" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">+ Europe</button>
+              <button type="button" class="btn btn-sm btn-light geo-pill-btn" onclick="addGeographyTag('Canada')" data-geo="Canada" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">+ Canada</button>
+              <button type="button" class="btn btn-sm btn-light geo-pill-btn" onclick="addGeographyTag('Australia')" data-geo="Australia" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">+ Australia</button>
+              <button type="button" class="btn btn-sm btn-light geo-pill-btn" onclick="addGeographyTag('United Arab Emirates')" data-geo="United Arab Emirates" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">+ UAE</button>
+            </div>
+            <script>
+              window.addGeographyTag = function(geo) {
+                var input = document.getElementById("target_geography") || document.getElementById("id_target_geography") || document.querySelector('input[name="target_geography"]');
+                if (!input || !geo) return;
+                var current = input.value.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+                if (!current.some(function(s) { return s.toLowerCase() === geo.toLowerCase(); })) {
+                  current.push(geo);
+                  input.value = current.join(', ');
+                  input.focus();
+                  input.dispatchEvent(new Event('change', { bubbles: true }));
+                  input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+              };
+            </script>
+            <div class="form-text" style="font-size: 11px; color: var(--muted)">
+              Enter country or city names separated by commas (e.g. United States, London, Singapore). If left blank, companies globally will be included.
+            </div>
+            {% if form.target_geography.errors %}
+            <div class="invalid-feedback d-block">
+              {{ form.target_geography.errors.0 }}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Source -->
+      <div
+        class="card mb-3"
+        style="
+          border: 1px solid var(--border);
+          box-shadow: none;
+          animation: none;
+          {% if form.instance.pk %}opacity: 0.9;{% endif %}
+        "
+      >
+        <div class="card-header" style="padding: 12px 16px">
+          <div class="card-title">Content Source {% if form.instance.pk %}<span class="badge" style="background: rgba(148, 163, 184, 0.15); color: var(--muted); font-size: 10px; font-weight: 600; margin-left: 6px;">Cannot be changed in edit mode</span>{% endif %}</div>
+          <div class="card-sub">
+            {% if form.instance.pk %}
+            Content source is fixed to preserve the AI customer profile and intelligence data.
+            {% else %}
+            Choose exactly one source layout to extract the customer profile from
+            {% endif %}
           </div>
         </div>
         <div class="card-body">
@@ -246,6 +519,7 @@
                     {% if form.instance.input_type == 'pdf' %}checked{% endif %}
                     class="form-check-input"
                     disabled
+                    data-locked="true"
                   />
                   <label
                     for="input_type_pdf"
@@ -269,6 +543,7 @@
                     {% if form.instance.input_type == 'url' %}checked{% endif %}
                     class="form-check-input"
                     disabled
+                    data-locked="true"
                   />
                   <label
                     for="input_type_url"
@@ -292,6 +567,7 @@
                     {% if form.instance.input_type == 'text' %}checked{% endif %}
                     class="form-check-input"
                     disabled
+                    data-locked="true"
                   />
                   <label
                     for="input_type_text"
@@ -315,6 +591,7 @@
                     {% if form.instance.input_type == 'icp' %}checked{% endif %}
                     class="form-check-input"
                     disabled
+                    data-locked="true"
                   />
                   <label
                     for="input_type_icp"
@@ -442,39 +719,56 @@
           padding-top: 4px;
         "
       >
-        {% if next_page == 'detail' %}
-        <a
-          href="{% url 'prospect_pulse:prospect_pulse_detail' pulse_id %}"
-          class="btn btn-secondary"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            style="width: 12px; height: 12px"
+        <div class="d-flex align-items-center gap-2">
+          {% if next_page == 'detail' and pulse_id %}
+          <a
+            href="{% url 'prospect_pulse:prospect_pulse_detail' pulse_id %}"
+            class="btn btn-secondary"
           >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Back to Details
-        </a>
-        {% else %}
-        <a
-          href="{% url 'prospect_pulse:prospect_pulse_list' %}"
-          class="btn btn-secondary"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            style="width: 12px; height: 12px"
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              style="width: 12px; height: 12px"
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Back to Details
+          </a>
+          <a
+            href="{% url 'prospect_pulse:prospect_pulse_list' %}"
+            class="btn btn-secondary"
           >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Back to List
-        </a>
-        {% endif %}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              style="width: 12px; height: 12px"
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Back to List
+          </a>
+          {% else %}
+          <a
+            href="{% url 'prospect_pulse:prospect_pulse_list' %}"
+            class="btn btn-secondary"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              style="width: 12px; height: 12px"
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Back to List
+          </a>
+          {% endif %}
+        </div>
         <button type="submit" class="btn btn-primary">
           <svg
             viewBox="0 0 24 24"
@@ -497,4 +791,14 @@
 </div>
 {% endblock %} {% block extra_js %}
 <script src="{% static 'pulses/js/pulse_form.js' %}"></script>
+{% if form.non_field_errors %}
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    var errorMsg = "{% for error in form.non_field_errors %}{{ error|escapejs }}{% if not forloop.last %} {% endif %}{% endfor %}";
+    if (errorMsg && window.triggerToastAlert) {
+      window.triggerToastAlert(errorMsg, "error");
+    }
+  });
+</script>
+{% endif %}
 {% endblock %}

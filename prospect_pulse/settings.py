@@ -31,12 +31,18 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-woykz#!nbg$&p#cj_@ufj
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
 
+if not DEBUG and not os.environ.get('SECRET_KEY'):
+    raise RuntimeError("CRITICAL SECURITY ERROR: SECRET_KEY environment variable must be configured in production (DEBUG=False).")
+
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
+    "testserver",
     "console-stage.agentyne.com",
     "console.agentyne.com",
 ]
+if os.environ.get('ALLOWED_HOSTS'):
+    ALLOWED_HOSTS.extend([h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()])
 
 # Production Security & SSL Flags
 if not DEBUG:
@@ -53,6 +59,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://console-stage.agentyne.com",
     "https://console.agentyne.com",
 ]
+if os.environ.get('CSRF_TRUSTED_ORIGINS'):
+    CSRF_TRUSTED_ORIGINS.extend([o.strip() for o in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()])
 
 
 # Application definition
@@ -144,9 +152,14 @@ USE_TZ = True
 
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
+
+# Media files (User uploads, PDFs, exported files)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Celery Configuration Options
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', f"sqla+sqlite:///{str(BASE_DIR / 'celery_broker.sqlite3').replace('\\', '/')}")
@@ -179,4 +192,8 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("google").setLevel(logging.WARNING)
 logging.getLogger("google_genai").setLevel(logging.WARNING)
+
+# Disburse.dev B2B Lead Intelligence API Key
+DISBURSE_API_KEY = os.environ.get('DISBURSE_API_KEY', '')
+
 

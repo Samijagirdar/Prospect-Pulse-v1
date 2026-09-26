@@ -1,5 +1,12 @@
 let quotaAlertTimeout = null;
 
+function getCsrfToken() {
+  const meta = document.querySelector('input[name=csrfmiddlewaretoken]');
+  if (meta && meta.value) return meta.value;
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
 function triggerQuotaAlert(msg) {
   const banner = document.getElementById("quota-alert-banner");
   const messageEl = document.getElementById("quota-alert-message");
@@ -89,11 +96,97 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 5000);
   }
 
+  // Universal Unicode Decoder: Converts \uXXXX escape sequences into real characters
+  function decodeUnicodeEscapes(str) {
+    if (!str) return "";
+    return str.replace(/\\u([0-9a-fA-F]{4})/g, function (_, hex) {
+      return String.fromCharCode(parseInt(hex, 16));
+    });
+  }
+
+  // Smart Bullet-Point Formatter: Transforms raw paragraphs or multiline summaries into modern bullet points
+  function formatSummaryToBulletHTML(rawText) {
+    if (!rawText || !rawText.trim()) {
+      return '<div style="color: var(--muted); font-style: italic;">No summary available.</div>';
+    }
+
+    let text = rawText.trim();
+    let lines = text.split(/[\r\n]+/).map((s) => s.trim()).filter(Boolean);
+    let bullets = [];
+
+    if (lines.length > 1) {
+      bullets = lines
+        .map((line) => line.replace(/^[•\-\*\d\.\)\s]+/, "").trim())
+        .filter(Boolean);
+    } else {
+      // Single paragraph: Protect common abbreviations before sentence boundary split
+      const abbrevs = [
+        [/\bU\.S\./gi, "U_DOT_S_DOT_"],
+        [/\bU\.K\./gi, "U_DOT_K_DOT_"],
+        [/\be\.g\./gi, "E_DOT_G_DOT_"],
+        [/\bi\.e\./gi, "I_DOT_E_DOT_"],
+        [/\bvs\./gi, "VS_DOT_"],
+        [/\bInc\./gi, "INC_DOT_"],
+        [/\bCorp\./gi, "CORP_DOT_"],
+        [/\bCo\./gi, "CO_DOT_"],
+        [/\bLtd\./gi, "LTD_DOT_"],
+        [/\bDr\./gi, "DR_DOT_"],
+        [/\bMr\./gi, "MR_DOT_"],
+        [/\bMs\./gi, "MS_DOT_"],
+      ];
+
+      let protectedText = text;
+      abbrevs.forEach(([pat, rep]) => {
+        protectedText = protectedText.replace(pat, rep);
+      });
+
+      // Split sentences on [.!?] followed by whitespace and a capital letter, digit, or quote
+      const sentences = protectedText.split(/(?<=[.!?])\s+(?=[A-Z0-9"“'\(])/);
+
+      bullets = sentences
+        .map((s) => {
+          let restored = s.trim();
+          abbrevs.forEach(([pat, rep]) => {
+            const original = pat.source.replace(/\\b/g, "").replace(/\\\./g, ".");
+            restored = restored.split(rep).join(original);
+          });
+          return restored.replace(/^[•\-\*\d\.\)\s]+/, "").trim();
+        })
+        .filter((s) => s.length > 5);
+
+      if (bullets.length === 0) {
+        bullets = [text];
+      }
+    }
+
+    // Build modern styled HTML list
+    const itemsHtml = bullets
+      .map((b) => {
+        const escaped = b
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+
+        return `
+        <li style="display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; color: var(--text); font-size: 13.5px;">
+          <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-top: 7px; flex-shrink: 0;"></span>
+          <span style="flex: 1;">${escaped}</span>
+        </li>
+      `;
+      })
+      .join("");
+
+    return `<ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px;">${itemsHtml}</ul>`;
+  }
+
   document.querySelectorAll(".btn-view-summary").forEach((btn) => {
     btn.addEventListener("click", function (e) {
       e.preventDefault();
-      const summary = this.getAttribute("data-summary");
-      document.getElementById("summary-modal-content").innerText = summary;
+      const hiddenSummary = this.closest("td")?.querySelector(".article-summary-data");
+      let summary = hiddenSummary ? hiddenSummary.textContent : (this.getAttribute("data-summary") || "");
+      summary = decodeUnicodeEscapes(summary.trim());
+      document.getElementById("summary-modal-content").innerHTML = formatSummaryToBulletHTML(summary);
       document.getElementById("summaryModal").style.display = "flex";
     });
   });
@@ -116,7 +209,7 @@ document.addEventListener("DOMContentLoaded", function () {
       fetch(`/articles/${articleId}/summarize/`, {
         method: "POST",
         headers: {
-          "X-CSRFToken": "{{ csrf_token }}",
+          "X-CSRFToken": getCsrfToken(),
         },
       })
         .then((res) => res.json())
@@ -178,10 +271,10 @@ document.addEventListener("DOMContentLoaded", function () {
         `;
       this.style.opacity = "0.7";
 
-      fetch(`/articles/${articleId}/summarize/`, {
+      fetch(`/articles/${articleId}/move-intent/`, {
         method: "POST",
         headers: {
-          "X-CSRFToken": "{{ csrf_token }}",
+          "X-CSRFToken": getCsrfToken(),
         },
       })
         .then((res) => res.json())

@@ -1,14 +1,14 @@
 import asyncio
-from datetime import datetime, timedelta
 from django.utils import timezone
 from celery import shared_task
 from apps.pulses.models import Pulse
 from .models import DiscoveryRun, Article, Lead, Notification
-from .pipeline.scraper import GoogleNewsScraper
+from .pipeline.multi_source_scraper import MultiSourceScraper
 from .pipeline.deduplicator import Deduplicator
 from .pipeline.summarizer import summarize_pulse_articles
+from .pipeline.lead_extractor import extract_pulse_leads
 
-def run_pulse_discovery(pulse_id, run_id=None):
+def run_pulse_discovery(pulse_id, run_id=None, timeframe_days_override=None):
     """
     Synchronous pipeline runner for executing a prospect pulse discovery scan.
     Calculates timeframe windows, scrapes articles, deduplicates, runs LLM judges,
@@ -16,9 +16,28 @@ def run_pulse_discovery(pulse_id, run_id=None):
     """
     pulse = Pulse.objects.get(id=pulse_id)
     
+    # Check if pulse has reached its end date
+    if pulse.is_expired:
+        end_date_str = pulse.end_date.strftime('%d/%m/%Y') if pulse.end_date else ''
+        err_msg = f"This pulse has reached its end date ({end_date_str}). Please edit your pulse and extend the end date to run discovery."
+        print(f"Aborting discovery for pulse '{pulse.name}': {err_msg}")
+        if run_id:
+            try:
+                run = DiscoveryRun.objects.get(id=run_id)
+                run.status = 'failed'
+                run.error_message = err_msg
+                run.completed_at = timezone.now()
+                run.save()
+            except Exception:
+                pass
+        return
+
     # Initialize or fetch run log
     if run_id:
         run = DiscoveryRun.objects.get(id=run_id)
+        if run.status == 'stopped':
+            print(f"Run #{run.id} was already marked stopped before execution began.")
+            return
         run.status = 'starting'
         run.started_at = timezone.now()
         run.save()
@@ -38,73 +57,95 @@ def run_pulse_discovery(pulse_id, run_id=None):
     )
     
     try:
-        # Timeframe calculation (60 days back on first run, dynamic elapsed days on subsequent runs)
+        # Timeframe calculation with intelligent gap-filling
         run.status = 'calculating query timeframe...'
         run.save()
-        completed_runs = DiscoveryRun.objects.filter(pulse=pulse, status='completed')
-        if not completed_runs.exists() or not pulse.last_processed_at:
-            timeframe_days = 60
-            print(f"First run for pulse '{pulse.name}'. Using historical time window of 60 days.")
-        else:
-            import math
-            delta = timezone.now() - pulse.last_processed_at
-            elapsed_hours = delta.total_seconds() / 3600
-            timeframe_days = math.ceil(elapsed_hours / 24)
-            
-            # Safe minimum & maximum bounds
-            if timeframe_days < 1:
-                timeframe_days = 1
-            elif timeframe_days > 60:
-                timeframe_days = 60
-                
-            print(f"Incremental run for pulse '{pulse.name}'. Last run was {elapsed_hours:.2f} hours ago. Using dynamic query window of {timeframe_days} days.")
+        lookback_map = {
+            '30d': 30,
+            '60d': 60,
+            '90d': 90,
+            '180d': 180,
+            '365d': 365
+        }
+        max_configured_timeframe = lookback_map.get(getattr(pulse, 'historical_lookback', '60d'), 60)
 
-        # Collect keywords
+        # 1. If an explicit timeframe override is provided, use it
+        if timeframe_days_override and isinstance(timeframe_days_override, int) and timeframe_days_override > 0:
+            timeframe_days = min(timeframe_days_override, max_configured_timeframe)
+            print(f"Using explicit timeframe override of {timeframe_days} days for pulse '{pulse.name}'.")
+        else:
+            # 2. Intelligent Gap-Filling: Find the last run that ACTUALLY ingested articles
+            last_successful_run = DiscoveryRun.objects.filter(
+                pulse=pulse,
+                status='completed',
+                articles_scraped__gt=0
+            ).exclude(id=run.id).order_by('-completed_at').first()
+
+            if not last_successful_run or not last_successful_run.completed_at:
+                timeframe_days = max_configured_timeframe
+                print(f"First run (or no prior successful extractions) for pulse '{pulse.name}'. Using configured historical time window of {timeframe_days} days.")
+            else:
+                import math
+                delta = timezone.now() - last_successful_run.completed_at
+                elapsed_hours = delta.total_seconds() / 3600
+                # Add a 1-day safety buffer so boundary articles right on the threshold are never missed
+                timeframe_days = math.ceil(elapsed_hours / 24) + 1
+                
+                # Minimum 2-day lookback to account for RSS syndication delays and timezone differences
+                if timeframe_days < 2:
+                    timeframe_days = 2
+                elif timeframe_days > max_configured_timeframe:
+                    timeframe_days = max_configured_timeframe
+                    
+                print(f"Incremental run for pulse '{pulse.name}'. Last successful extraction was {elapsed_hours:.2f} hours ago (Run #{last_successful_run.id}). Using dynamic query window of {timeframe_days} days.")
+
+        # Collect keywords and monitored competitors
         keywords = [kw.keyword for kw in pulse.keywords_rel.all()]
         if not keywords:
             keywords = ["Revenue Intelligence Platform", "Sales Automation Software", "AI Lead Generation"]
             print("No keywords configured. Using default placeholder search terms.")
 
-        # Initialize and configure scraper
-        scraper = GoogleNewsScraper()
-        search_config = {
-            'hl': 'en-US',
-            'gl': 'US',
-            'pagination': 1
-        }
+        # Actively monitor configured and discovered competitors in the scraping query pool
+        competitors = [c.competitor_name.strip() for c in pulse.competitors.all() if c.competitor_name.strip()]
+        search_terms = list(keywords)
+        for comp in competitors[:8]:  # actively scrape top monitored competitors
+            if comp and comp not in search_terms:
+                search_terms.append(comp)
+
+        print(f"Scraper search query pool: {len(search_terms)} queries ({len(keywords)} keywords + {len(search_terms) - len(keywords)} monitored competitors).")
+
+        # Initialize multi-source scraper
+        scraper = MultiSourceScraper()
         
-        # Execute scraping query loops using a fresh event loop
+        # Fetch existing URLs already discovered for this pulse to skip re-scraping them
+        existing_urls = set(Article.objects.filter(pulse=pulse).values_list('url', flat=True))
+
+        # Execute scraping query loops across all sources in parallel
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         scraped_articles_data = []
         try:
-            loop.run_until_complete(scraper.setup_browser())
-            for i, query in enumerate(keywords):
-                run.status = f'Scraping articles for keyword ({i+1}/{len(keywords)}): "{query}"'
-                run.save()
-                articles = loop.run_until_complete(
-                    scraper.scrape_news_rss(query, timeframe_days, search_config)
-                )
-                scraped_articles_data.extend(articles)
-                if i < len(keywords) - 1:
-                    loop.run_until_complete(asyncio.sleep(1.5))
+            run.status = f'Ingesting signals in parallel across Google News, Tech Funding, PR Wires & Hacker News...'
+            run.save()
+            scraped_articles_data = loop.run_until_complete(
+                scraper.scrape_all_sources_parallel(search_terms, timeframe_days, existing_urls=existing_urls)
+            )
         finally:
-            loop.run_until_complete(scraper.close())
             loop.close()
 
-        print(f"Scraper returned {len(scraped_articles_data)} raw items from Google News.")
+        print(f"Multi-source scraper returned {len(scraped_articles_data)} new raw items.")
 
         # Deduplicate scraped raw articles by URL first to avoid duplicate processing in the same run
-        seen_urls = set()
+        seen_urls = set(existing_urls)
         unique_scraped_articles = []
         for art in scraped_articles_data:
             url = art.get('url')
-            if url not in seen_urls:
+            if url and url not in seen_urls:
                 seen_urls.add(url)
                 unique_scraped_articles.append(art)
         scraped_articles_data = unique_scraped_articles
         
-        print(f"Deduplicated to {len(scraped_articles_data)} unique raw items by URL.")
+        print(f"Deduplicated to {len(scraped_articles_data)} unique new raw items by URL.")
 
         deduplicator = Deduplicator(time_window_days=14)
         articles_saved = 0
@@ -115,13 +156,53 @@ def run_pulse_discovery(pulse_id, run_id=None):
         total_classification_completion = 0
         total_classification_tokens = 0
 
+        def _finalize_stopped_run(c_prompt=0, c_comp=0, c_tot=0):
+            leads_cnt = Lead.objects.filter(discovery_run=run).count()
+            run.completed_at = timezone.now()
+            run.articles_scraped = articles_saved
+            run.articles_relevant = relevant_count
+            run.leads_extracted = leads_cnt
+            run.prompt_tokens = c_prompt
+            run.completion_tokens = c_comp
+            run.total_tokens = c_tot
+            run.status = 'stopped'
+            run.save()
+
+            pulse.last_processed_at = timezone.now()
+            pulse.save()
+
+            now_str = timezone.now().strftime('%d/%m/%Y')
+            time_str = timezone.now().strftime('%H:%M')
+            Notification.objects.create(
+                title=f"Discovery Stopped for {pulse.name}",
+                message=f"🛑 Discovery run #{run.id} for '{pulse.name}' stopped on {now_str} at {time_str}. Preserved {articles_saved} articles ({relevant_count} relevant) and {leads_cnt} leads."
+            )
+            print(f"Discovery run #{run.id} finalized cleanly in 'stopped' state.")
+
+        # Check if run was stopped immediately after scraping
+        run.refresh_from_db(fields=['status'])
+        if run.status == 'stopped':
+            _finalize_stopped_run(0, 0, 0)
+            return
+
+        stopped_early = False
         for idx, art_data in enumerate(scraped_articles_data):
+            run.refresh_from_db(fields=['status'])
+            if run.status == 'stopped':
+                stopped_early = True
+                print(f"Run #{run.id} was stopped by user during deduplication/judging (item {idx+1}/{len(scraped_articles_data)}).")
+                break
+
             run.status = f'Deduplicating & judging article ({idx+1}/{len(scraped_articles_data)}): "{art_data["title"][:40]}..."'
             run.save()
             
             # Process semantic deduplication and LLM relevance judgements
             processed = deduplicator.process_article(art_data, pulse)
             
+            # If it turned out to be an exact URL match against database, drop it silently
+            if processed.get('duplicate_reason') == "Layer 1: URL Hash Match":
+                continue
+
             # Track Relevance Judge token usage if an API call was made
             if not processed.get('is_duplicate', False):
                 p_tok = processed.get('prompt_tokens', 0) or 0
@@ -133,7 +214,7 @@ def run_pulse_discovery(pulse_id, run_id=None):
                     total_classification_completion += c_tok
                     total_classification_tokens += t_tok
             
-            # Fetch matched original instance if Layer 1/2/3 duplicate matches exist
+            # Fetch matched original instance if Layer 2/2.5/3 duplicate matches exist
             matched_original_instance = None
             if processed.get('matched_original_id'):
                 try:
@@ -171,13 +252,64 @@ def run_pulse_discovery(pulse_id, run_id=None):
             if article_obj.is_relevant and not article_obj.is_duplicate:
                 relevant_count += 1
 
-        # Run summarizer and target entity extractions
-        run.status = 'Summarizing high intent news and extracting target leads...'
+        if stopped_early:
+            _finalize_stopped_run(total_classification_prompt, total_classification_completion, total_classification_tokens)
+            return
+
+        run.refresh_from_db(fields=['status'])
+        if run.status == 'stopped':
+            _finalize_stopped_run(total_classification_prompt, total_classification_completion, total_classification_tokens)
+            return
+
+        # Stage 3: Fast Executive Article Summarization (Gemini 3.8 Flash)
+        run.status = 'Summarizing relevant news articles with Gemini 3.8 Flash...'
         run.save()
         sum_prompt, sum_comp, sum_tot, sum_calls = summarize_pulse_articles(pulse, run)
+
+        run.refresh_from_db(fields=['status'])
+        if run.status == 'stopped':
+            _finalize_stopped_run(
+                total_classification_prompt + sum_prompt,
+                total_classification_completion + sum_comp,
+                total_classification_tokens + sum_tot
+            )
+            return
+
+        # Stage 4: Decision-Maker Leads Extraction (Disburse.dev with toggleable Gemini fallback)
+        import os
+        from .pipeline.disburse_lead_extractor import extract_pulse_leads_disburse
+
+        enable_gemini_leads = os.getenv("ENABLE_GEMINI_LEAD_EXTRACTION", "false").lower() == "true"
+        lead_prompt, lead_comp, lead_tot, lead_calls = 0, 0, 0, 0
+
+        run.status = 'Discovering decision-maker leads & contact details via Disburse.dev...'
+        run.save()
+        extract_pulse_leads_disburse(pulse, run)
+
+        if enable_gemini_leads:
+            run.status = 'Augmenting leads via Gemini 3.8 Flash search grounding...'
+            run.save()
+            lead_prompt, lead_comp, lead_tot, lead_calls = extract_pulse_leads(pulse, run)
+        else:
+            print("[Stage 4] Gemini search grounding lead extraction is PAUSED (saving tokens).")
+
+        run.refresh_from_db(fields=['status'])
+        if run.status == 'stopped':
+            _finalize_stopped_run(
+                total_classification_prompt + sum_prompt + lead_prompt,
+                total_classification_completion + sum_comp + lead_comp,
+                total_classification_tokens + sum_tot + lead_tot
+            )
+            return
         
         # Calculate leads count
         leads_count = Lead.objects.filter(discovery_run=run).count()
+
+        # Compute overall stats and print total usage block
+        total_calls = total_classification_calls + sum_calls + lead_calls
+        total_prompt = total_classification_prompt + sum_prompt + lead_prompt
+        total_completion = total_classification_completion + sum_comp + lead_comp
+        total_all_tokens = total_classification_tokens + sum_tot + lead_tot
 
         # Finalize run status logs
         run.status = 'completed'
@@ -185,30 +317,33 @@ def run_pulse_discovery(pulse_id, run_id=None):
         run.articles_scraped = articles_saved
         run.articles_relevant = relevant_count
         run.leads_extracted = leads_count
+        run.prompt_tokens = total_prompt
+        run.completion_tokens = total_completion
+        run.total_tokens = total_all_tokens
         run.save()
-
-        # Compute overall stats and print total usage block
-        total_calls = total_classification_calls + sum_calls
-        total_prompt = total_classification_prompt + sum_prompt
-        total_completion = total_classification_completion + sum_comp
-        total_all_tokens = total_classification_tokens + sum_tot
         
-        # Estimate cost (input $1.50/M tokens, output $9.00/M tokens)
-        estimated_cost = (total_prompt * 0.00000150) + (total_completion * 0.00000900)
+        # Estimate cost (input $0.075/M tokens, output $0.30/M tokens)
+        estimated_cost = (total_prompt * 0.000000075) + (total_completion * 0.00000030)
         
         print("\n" + "=" * 76, flush=True)
         print(f"             GEMINI API RUN SUMMARY: Discovery Run #{run.id}", flush=True)
         print(f"             Campaign: \"{pulse.name}\" (ID: {pulse.id})", flush=True)
         print("=" * 76, flush=True)
-        print(f" • Total Gemini API Calls: {total_calls} (Classifications: {total_classification_calls}, Summaries: {sum_calls})", flush=True)
+        print(f" • Total Gemini API Calls: {total_calls} (Classifications: {total_classification_calls}, Summaries: {sum_calls}, Lead Extractions: {lead_calls})", flush=True)
         print(f" • Total Input (Prompt) Tokens: {total_prompt:,}", flush=True)
         print(f" • Total Output (Completion) Tokens: {total_completion:,}", flush=True)
         print(f" • Total Tokens Consumed: {total_all_tokens:,}", flush=True)
         print(f" • Estimated Run Cost: ${estimated_cost:.5f} USD", flush=True)
         print("=" * 76 + "\n", flush=True)
 
-        pulse.last_processed_at = timezone.now()
-        pulse.save()
+        # Only advance pulse.last_processed_at if articles were actually discovered and saved
+        # This prevents 0-article failed/empty runs from causing a permanent time blind spot
+        if articles_saved > 0:
+            pulse.last_processed_at = timezone.now()
+            pulse.save(update_fields=['last_processed_at'])
+            print(f"Updated pulse.last_processed_at to {pulse.last_processed_at} ({articles_saved} articles saved).")
+        else:
+            print(f"Pulse '{pulse.name}' saved 0 articles. Preserving previous last_processed_at ({pulse.last_processed_at}) to allow subsequent gap-filling.")
         
         # Create completion notification
         now_str = timezone.now().strftime('%d/%m/%Y')
@@ -221,10 +356,28 @@ def run_pulse_discovery(pulse_id, run_id=None):
         print(f"Pipeline execution finished. Saved {articles_saved} articles ({relevant_count} relevant) and extracted {leads_count} leads.")
         
     except Exception as e:
+        # Check if the run was stopped by the user - do not overwrite 'stopped' with 'failed'
+        try:
+            run.refresh_from_db(fields=['status'])
+            if run.status == 'stopped':
+                print(f"Pipeline caught exception while in stopped state; suppressing error: {e}")
+                return
+        except Exception:
+            pass
+
         print(f"Pipeline execution encountered error: {e}")
+        err_str = str(e)
+        if any(keyword in err_str for keyword in ["PERMISSION_DENIED", "CONSUMER_SUSPENDED", "403", "UNAUTHENTICATED", "401", "api_key"]):
+            clean_err = "API Error please contact your administrator"
+        elif any(keyword in err_str for keyword in ["RESOURCE_EXHAUSTED", "quota", "spending cap", "429"]):
+            clean_err = "API Quota Exceeded. Please check your Google AI Studio spend caps."
+        else:
+            import re
+            clean_err = re.sub(r'api_key[=:][A-Za-z0-9_\-]+', 'api_key=***HIDDEN***', err_str)
+
         run.status = 'failed'
         run.completed_at = timezone.now()
-        run.error_message = str(e)
+        run.error_message = clean_err
         run.save()
         
         # Create failure notification
@@ -232,17 +385,17 @@ def run_pulse_discovery(pulse_id, run_id=None):
         time_str = timezone.now().strftime('%H:%M')
         Notification.objects.create(
             title=f"Discovery Failed for {pulse.name}",
-            message=f"⚠️ Discovery for '{pulse.name}' on {now_str} at {time_str} failed. Reason: {str(e)}"
+            message=f"⚠️ Discovery for '{pulse.name}' on {now_str} at {time_str} failed. Reason: {clean_err}"
         )
         raise e
 
 
 @shared_task
-def run_pulse_discovery_task(pulse_id, run_id=None):
+def run_pulse_discovery_task(pulse_id, run_id=None, timeframe_days_override=None):
     """
     Celery task wrapper for executing a discovery scan.
     """
-    run_pulse_discovery(pulse_id, run_id)
+    run_pulse_discovery(pulse_id, run_id, timeframe_days_override)
 
 
 @shared_task
@@ -290,12 +443,17 @@ def check_and_trigger_scheduled_pulses():
             # 30 days (with grace window)
             is_due = elapsed_seconds >= (30 * 24 * 3600 - 300)
             reason = f"Monthly interval reached (elapsed: {elapsed.days} days)"
-        elif pulse.frequency == 'custom' and pulse.custom_days:
-            # Custom X days (with grace window)
-            is_due = elapsed_seconds >= (pulse.custom_days * 24 * 3600 - 300)
-            reason = f"Custom interval of {pulse.custom_days} days reached (elapsed: {elapsed.days} days)"
             
         if is_due:
+            # Check if there is already an active run for this pulse before queueing another
+            has_active_run = pulse.discovery_runs.filter(
+                status__in=['queued', 'starting', 'scraping', 'processing', 'in_progress']
+            ).exclude(status__in=['completed', 'failed']).exists()
+
+            if has_active_run:
+                print(f"Celery Beat: Skipping trigger for pulse '{pulse.name}' - a discovery run is already active.")
+                continue
+
             print(f"Celery Beat: Campaign '{pulse.name}' is due for execution. Reason: {reason}. Triggering task...")
             # Create the DiscoveryRun record with 'queued' state
             DiscoveryRun = pulse.discovery_runs.model

@@ -1,5 +1,30 @@
-{% extends "dashboard/base.html" %} {% load static %} {% block title %}{{ pulse.name }} — Details{% endblock %} {% block topbar_title %}{{ pulse.name }}{% endblock %} {% block topbar_sub %}Prospect Pulse Configuration and Results{% endblock %} {% block content %}
+{% extends "dashboard/base.html" %} {% load static %} {% block topbar_title %}{{ pulse.name }}{% endblock %} {% block topbar_sub %}Prospect Pulse Configuration and Results{% endblock %} {% block content %}
 <link rel="stylesheet" href="{% static 'pulses/css/pulse_detail.css' %}" />
+
+{% if pulse.is_expired %}
+<div class="card mb-4" style="background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius-sm); padding: 14px 18px; box-shadow: var(--shadow-sm); animation: none;">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="width: 34px; height: 34px; border-radius: 8px; background: rgba(212, 0, 0, 0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div>
+        <div style="font-weight: 700; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 8px;">
+          <span>Campaign End Date Passed ({{ pulse.end_date|date:'d/m/Y' }})</span>
+          <span class="status-badge" style="background: var(--surface2); color: var(--muted); border: 1px solid var(--border); font-size: 10px; padding: 2px 7px;">Inactive</span>
+        </div>
+        <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
+          Discovery scans are paused because this pulse reached its end date. Extend the end date to resume running discovery.
+        </div>
+      </div>
+    </div>
+    <a href="{% url 'prospect_pulse:prospect_pulse_edit' pulse.uid %}" class="btn btn-secondary btn-sm" style="font-weight: 600; font-size: 12px; padding: 6px 14px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Edit Pulse & Extend End Date
+    </a>
+  </div>
+</div>
+{% endif %}
 
 <div class="ll-hero">
   <div class="ll-hero-glow"></div>
@@ -18,7 +43,10 @@
         id="run-discovery-form"
         method="post"
         action="{% url 'prospect_pulse:prospect_pulse_discover' pulse.uid %}"
-        style="margin:0; display: {% if active_run_id %}none{% elif pulse.last_processed_at and pulse.is_active %}none{% else %}inline-block{% endif %};"
+        data-is-expired="{% if pulse.is_expired %}true{% else %}false{% endif %}"
+        data-end-date="{{ pulse.end_date|date:'d/m/Y'|default:'' }}"
+        data-edit-url="{% url 'prospect_pulse:prospect_pulse_edit' pulse.uid %}"
+        style="margin:0; display: {% if active_run_id %}none{% elif pulse.last_processed_at and pulse.is_active and not pulse.is_expired %}none{% else %}inline-block{% endif %};"
       >
         {% csrf_token %}
         <button
@@ -236,6 +264,51 @@
   </div>
 </div>
 
+<!-- Alert Toast Banner (Styled like leads/sources) -->
+<div
+  id="quota-alert-banner"
+  class="alert-banner"
+  style="display: none;"
+>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.5"
+    style="flex-shrink: 0"
+  >
+    <path
+      d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+    />
+    <line x1="12" y1="9" x2="12" y2="13" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+  <span id="quota-alert-message" style="flex-grow: 1"></span>
+  <button
+    type="button"
+    onclick="dismissToastAlert()"
+    style="
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 1;
+      opacity: 0.6;
+      padding: 0;
+      transition: opacity 0.2s;
+    "
+    onmouseover="this.style.opacity = '1'"
+    onmouseout="this.style.opacity = '0.6'"
+  >
+    &times;
+  </button>
+</div>
+
 <!-- Layout: Configuration, Pulse Summary, Keywords & Buying Signals -->
 <div class="row g-4 mb-4">
   <!-- Column 1: Configuration Info & Monitored Competitors -->
@@ -301,6 +374,11 @@
       </div>
 
       <div class="info-row">
+        <span class="info-label">Initial Lookback</span>
+        <span class="info-value">{{ pulse.get_historical_lookback_display }}</span>
+      </div>
+
+      <div class="info-row">
         <span class="info-label">Last Run</span>
         <span class="info-value">
           {% if pulse.last_processed_at %}
@@ -309,6 +387,81 @@
             Never Run
           {% endif %}
         </span>
+      </div>
+
+
+      <!-- Target Geography -->
+      <div
+        class="info-row"
+        style="
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          padding-top: 12px;
+          border-top: 1px dashed var(--border);
+        "
+      >
+        <div class="d-flex justify-content-between align-items-center w-100">
+          <span
+            class="info-label"
+            style="
+              font-weight: 700;
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #6366f1;
+            "
+          ><i class="bi bi-geo-alt me-1"></i>Target Geography</span>
+          <button
+            type="button"
+            class="btn btn-xs btn-outline-secondary py-0 px-1 font-weight-bold"
+            style="font-size: 10px; border-radius: 4px"
+            onclick="showAddInput('geography')"
+          >
+            + Add
+          </button>
+        </div>
+        <div
+          style="width: 100%; display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px"
+        >
+          {% if pulse.target_geography_list %}
+            {% for geo in pulse.target_geography_list %}
+            <span class="competitor-badge d-inline-flex align-items-center gap-1" style="background: rgba(99, 102, 241, 0.08); color: #4f46e5; border: 1px solid rgba(99, 102, 241, 0.2);"
+              ><i class="bi bi-geo-alt-fill" style="font-size: 9px;"></i>{{ geo }}
+              <button
+                type="button"
+                class="btn-close-badge"
+                onclick="removeItem('geography', '{{ geo|escapejs }}', this)"
+                title="Remove"
+              >
+                &times;
+              </button></span
+            >
+            {% endfor %}
+          {% else %}
+            <span style="font-size: 11.5px; color: var(--muted); font-style: italic"
+              ><i class="bi bi-globe me-1"></i>Global (All Geographies)</span
+            >
+          {% endif %}
+        </div>
+        <div id="add-geography-box" class="d-none mt-2 w-100">
+          <div class="input-group input-group-sm">
+            <input
+              type="text"
+              id="add-geography-input"
+              class="form-control form-control-sm"
+              placeholder="e.g. United States, London, Singapore..."
+              onkeydown="if (event.key === 'Enter') addItem('geography');"
+            />
+            <button
+              class="btn btn-primary btn-sm"
+              type="button"
+              onclick="addItem('geography')"
+            >
+              Add
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Competitors -->
@@ -452,7 +605,7 @@
               font-size: 9.5px;
               font-weight: 700;
             "
-            >GEMINI FIT</span
+            >HIGH FIT</span
           >
         </div>
         {% if pulse.ai_confidence_reason %}
@@ -471,23 +624,41 @@
 
       <div class="info-row">
         <span class="info-label">Company Size</span>
-        <span class="info-value"
-          >{{ pulse.company_size|default:"100-500" }}</span
-        >
+        <span class="info-value d-inline-flex align-items-center gap-1">
+          <span id="display-company_size">{{ pulse.company_size|default:"100-500" }}</span>
+          <button type="button" id="btn-edit-company_size" class="btn-icp-metric-edit" onclick="openIcpMetricModal('company_size', '{{ pulse.company_size|default:'100-500'|escape }}')" title="Edit Company Size">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+        </span>
       </div>
 
       <div class="info-row">
         <span class="info-label">Revenue Range</span>
-        <span class="info-value"
-          >{{ pulse.revenue_range|default:"$10M - $50M" }}</span
-        >
+        <span class="info-value d-inline-flex align-items-center gap-1">
+          <span id="display-revenue_range">{{ pulse.revenue_range|default:"$10M - $50M" }}</span>
+          <button type="button" id="btn-edit-revenue_range" class="btn-icp-metric-edit" onclick="openIcpMetricModal('revenue_range', '{{ pulse.revenue_range|default:'$10M - $50M'|escape }}')" title="Edit Revenue Range">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+        </span>
       </div>
 
       <div class="info-row">
         <span class="info-label">Employee Count</span>
-        <span class="info-value"
-          >{{ pulse.employee_count|default:"100-400" }}</span
-        >
+        <span class="info-value d-inline-flex align-items-center gap-1">
+          <span id="display-employee_count">{{ pulse.employee_count|default:"100-400" }}</span>
+          <button type="button" id="btn-edit-employee_count" class="btn-icp-metric-edit" onclick="openIcpMetricModal('employee_count', '{{ pulse.employee_count|default:'100-400'|escape }}')" title="Edit Employee Count">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+        </span>
       </div>
 
       <!-- Target Focus -->
@@ -502,15 +673,16 @@
       >
         <div class="d-flex justify-content-between align-items-center w-100">
           <span
-            class="info-label"
+            class="info-label d-inline-flex align-items-center gap-1"
             style="
               font-weight: 700;
               font-size: 11px;
               text-transform: uppercase;
               letter-spacing: 0.5px;
             "
-            >Target Focus</span
-          >
+            >Target Focus
+            <span class="badge ms-1" id="focus-count-badge" style="background: rgba(220, 38, 38, 0.1); color: var(--accent); font-size: 9.5px; font-weight: 700; padding: 2px 5px; border-radius: 4px;">({{ pulse.target_account_focus_list|length }}/8)</span>
+          </span>
           <button
             type="button"
             class="btn btn-xs btn-outline-danger py-0 px-1 font-weight-bold"
@@ -588,15 +760,16 @@
       >
         <div class="d-flex justify-content-between align-items-center w-100">
           <span
-            class="info-label"
+            class="info-label d-inline-flex align-items-center gap-1"
             style="
               font-weight: 700;
               font-size: 11px;
               text-transform: uppercase;
               letter-spacing: 0.5px;
             "
-            >Personas Targeted</span
-          >
+            >Personas Targeted
+            <span class="badge ms-1" id="personas-count-badge" style="background: rgba(107, 114, 128, 0.12); color: var(--text); font-size: 9.5px; font-weight: 700; padding: 2px 5px; border-radius: 4px;">({{ pulse.personas_list|length }}/8)</span>
+          </span>
           <button
             type="button"
             class="btn btn-xs btn-outline-secondary py-0 px-1 font-weight-bold"
@@ -656,29 +829,40 @@
   </div>
 
   <!-- Column 3: Categorized Search Keywords & Buying Signals -->
-  <div class="col-lg-4">
+  <div class="col-lg-4 d-flex flex-column">
     <!-- Card 1: AI Search Keywords -->
     <div
-      class="detail-card mb-3"
-      style="padding: 16px 20px; margin-bottom: 12px"
+      class="detail-card mb-3 d-flex flex-column flex-fill"
+      style="padding: 16px 20px; margin-bottom: 16px"
     >
-      <div class="detail-card-title" style="margin-bottom: 8px">
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
+      <div class="detail-card-title d-flex justify-content-between align-items-center" style="margin-bottom: 8px">
+        <span class="d-inline-flex align-items-center gap-1">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          AI Search Keywords
+          <span class="badge ms-1" id="keywords-count-badge" style="background: rgba(59, 130, 246, 0.12); color: #3b82f6; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">({{ pulse.keywords_rel.count }}/15)</span>
+        </span>
+        <button
+          type="button"
+          class="btn btn-xs btn-outline-primary py-0 px-1 font-weight-bold"
+          style="font-size: 10px; border-radius: 4px;"
+          onclick="showAddInput('keyword')"
         >
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-        AI Search Keywords
+          + Add Keyword
+        </button>
       </div>
       <div
-        class="d-flex flex-column"
-        style="max-height: 165px; overflow-y: auto; padding-right: 4px"
+        class="d-flex flex-column flex-grow-1"
+        style="max-height: 250px; min-height: 195px; overflow-y: auto; padding-right: 4px"
       >
         {% for category, keywords in pulse.categorized_keywords.items %}
         <div
@@ -695,7 +879,7 @@
         </div>
         {% for keyword in keywords %}
         <div
-          class="buying-signal-badge"
+          class="buying-signal-badge badge-item d-flex align-items-center justify-content-between"
           style="
             background: rgba(59, 130, 246, 0.05);
             color: #3b82f6;
@@ -705,34 +889,82 @@
             font-size: 11.5px;
           "
         >
-          <div
-            class="buying-signal-dot"
-            style="background: #3b82f6; width: 5px; height: 5px"
-          ></div>
-          {{ keyword }}
+          <div class="d-flex align-items-center gap-2">
+            <div
+              class="buying-signal-dot"
+              style="background: #3b82f6; width: 5px; height: 5px"
+            ></div>
+            {{ keyword }}
+          </div>
+          <button
+            type="button"
+            class="btn-close-badge"
+            style="color: #3b82f6; opacity: 0.6; border: none; background: none; font-size: 12px; cursor: pointer;"
+            onclick="removeItem('keyword', '{{ keyword|escapejs }}', this)"
+            title="Remove Keyword"
+          >
+            &times;
+          </button>
         </div>
         {% endfor %} {% endfor %}
+      </div>
+      <div id="add-keyword-box" class="d-none mt-2 w-100">
+        <div class="d-flex flex-column gap-1">
+          <select id="add-keyword-category" class="form-select form-select-sm" style="font-size: 11px; padding: 3px 8px; border-radius: 4px; border-color: var(--border); background: var(--surface); color: var(--text);">
+            <option value="">Default (Top Category)</option>
+            {% for cat in pulse.categorized_keywords.keys %}
+            <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+          </select>
+          <div class="input-group input-group-sm">
+            <input
+              type="text"
+              id="add-keyword-input"
+              class="form-control form-control-sm"
+              placeholder="Enter new keyword..."
+              onkeydown="if (event.key === 'Enter') addItem('keyword');"
+            />
+            <button
+              class="btn btn-primary btn-sm"
+              type="button"
+              onclick="addItem('keyword')"
+            >
+              Add
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Card 2: High-Intent Buying Signals -->
-    <div class="detail-card" style="padding: 16px 20px">
-      <div class="detail-card-title" style="margin-bottom: 8px">
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
+    <div class="detail-card d-flex flex-column flex-fill mb-0" style="padding: 16px 20px; margin-bottom: 0 !important;">
+      <div class="detail-card-title d-flex justify-content-between align-items-center" style="margin-bottom: 8px">
+        <span class="d-inline-flex align-items-center gap-1">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
+          High-Intent Buying Signals
+          <span class="badge ms-1" id="signals-count-badge" style="background: rgba(16, 185, 129, 0.12); color: var(--success); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">({{ pulse.buying_signals_rel.count }}/15)</span>
+        </span>
+        <button
+          type="button"
+          class="btn btn-xs btn-outline-success py-0 px-1 font-weight-bold"
+          style="font-size: 10px; border-radius: 4px;"
+          onclick="showAddInput('buying_signal')"
         >
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-        </svg>
-        High-Intent Buying Signals
+          + Add Signal
+        </button>
       </div>
       <div
-        class="d-flex flex-column"
-        style="max-height: 165px; overflow-y: auto; padding-right: 4px"
+        class="d-flex flex-column flex-grow-1"
+        style="max-height: 250px; min-height: 195px; overflow-y: auto; padding-right: 4px"
       >
         {% for category, signals in pulse.categorized_buying_signals.items %}
         <div
@@ -749,13 +981,50 @@
         </div>
         {% for signal in signals %}
         <div
-          class="buying-signal-badge"
+          class="buying-signal-badge badge-item d-flex align-items-center justify-content-between"
           style="margin-bottom: 4px; padding: 4px 10px; font-size: 11.5px"
         >
-          <div class="buying-signal-dot" style="width: 5px; height: 5px"></div>
-          {{ signal }}
+          <div class="d-flex align-items-center gap-2">
+            <div class="buying-signal-dot" style="width: 5px; height: 5px"></div>
+            {{ signal }}
+          </div>
+          <button
+            type="button"
+            class="btn-close-badge"
+            style="color: var(--success); opacity: 0.6; border: none; background: none; font-size: 12px; cursor: pointer;"
+            onclick="removeItem('buying_signal', '{{ signal|escapejs }}', this)"
+            title="Remove Signal"
+          >
+            &times;
+          </button>
         </div>
         {% endfor %} {% endfor %}
+      </div>
+      <div id="add-buying_signal-box" class="d-none mt-2 w-100">
+        <div class="d-flex flex-column gap-1">
+          <select id="add-buying_signal-category" class="form-select form-select-sm" style="font-size: 11px; padding: 3px 8px; border-radius: 4px; border-color: var(--border); background: var(--surface); color: var(--text);">
+            <option value="">Default (Top Category)</option>
+            {% for cat in pulse.categorized_buying_signals.keys %}
+            <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+          </select>
+          <div class="input-group input-group-sm">
+            <input
+              type="text"
+              id="add-buying_signal-input"
+              class="form-control form-control-sm"
+              placeholder="Enter buying signal name..."
+              onkeydown="if (event.key === 'Enter') addItem('buying_signal');"
+            />
+            <button
+              class="btn btn-success btn-sm"
+              type="button"
+              onclick="addItem('buying_signal')"
+            >
+              Add
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -852,6 +1121,305 @@
         "
       >
         Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Item (Keyword / Buying Signal / Persona / Competitor) Delete Modal -->
+<div
+  id="customItemDeleteModal"
+  class="custom-confirm-overlay"
+  style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(6px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  "
+>
+  <div
+    class="custom-confirm-box"
+    style="
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+      text-align: left;
+    "
+  >
+    <h4
+      id="itemDeleteModalTitle"
+      style="
+        font-weight: 700;
+        font-size: 16px;
+        margin-bottom: 8px;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      "
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--accent)"
+        stroke-width="2"
+        style="width: 18px; height: 18px"
+      >
+        <path
+          d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+        />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      Confirm Deletion
+    </h4>
+    <p
+      id="itemDeleteModalText"
+      style="
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 20px;
+        line-height: 1.5;
+      "
+    >
+      Are you sure you want to remove this item?
+    </p>
+    <div style="display: flex; justify-content: flex-end; gap: 8px">
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        onclick="closeItemDeleteModal()"
+        style="padding: 8px 14px"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        id="confirmItemDeleteBtn"
+        class="btn btn-sm"
+        onclick="confirmItemDelete()"
+        style="
+          background: var(--accent);
+          border-color: var(--accent);
+          color: #fff;
+          padding: 8px 14px;
+        "
+      >
+        Remove
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Custom ICP Metric Edit Modal -->
+<div
+  id="icpMetricModal"
+  class="custom-confirm-overlay"
+  style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  "
+>
+  <div
+    class="custom-confirm-box"
+    style="
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      max-width: 480px;
+      width: 92%;
+      padding: 26px;
+      box-shadow: 0 20px 30px -5px rgba(0, 0, 0, 0.5);
+      text-align: left;
+    "
+  >
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+      <h4
+        id="icp-metric-modal-title"
+        style="
+          font-weight: 800;
+          font-size: 17px;
+          margin: 0;
+          color: var(--text);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        "
+      >
+        <span id="icp-metric-modal-icon" style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(99, 102, 241, 0.12); color: #6366f1;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+        </span>
+        <span id="icp-metric-title-text">Edit Metric</span>
+      </h4>
+      <button
+        type="button"
+        onclick="closeIcpMetricModal()"
+        style="background: none; border: none; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; padding: 4px;"
+      >
+        &times;
+      </button>
+    </div>
+
+    <!-- Subtitle / Guide -->
+    <p id="icp-metric-subtext" style="font-size: 12.5px; color: var(--muted); margin-bottom: 18px; line-height: 1.4;">
+      Adjust the target criteria for this pulse profile.
+    </p>
+
+    <!-- SECTION 1: Revenue Range Form -->
+    <div id="metric-form-revenue" class="metric-form-panel" style="display: none;">
+      <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 14px;">
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; display: block;">Min Amount</label>
+          <div class="input-group">
+            <span class="input-group-text" style="font-weight: 700; background: rgba(255,255,255,0.03); border-color: var(--border); color: var(--muted); font-size: 13px;">$</span>
+            <input type="number" id="metric-rev-min" class="form-control" placeholder="10" min="0" step="any" style="font-size: 13px;">
+            <select id="metric-rev-min-unit" class="form-select" onchange="updateMetricLivePreview()" style="max-width: 65px; font-weight: 700; font-size: 12px; padding-left: 8px; padding-right: 20px;">
+              <option value="K">K</option>
+              <option value="M" selected>M</option>
+              <option value="B">B</option>
+            </select>
+          </div>
+        </div>
+        <span style="color: var(--muted); font-size: 12px; font-weight: 700; margin-top: 18px;">to</span>
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; display: block;">Max Amount</label>
+          <div class="input-group">
+            <span class="input-group-text" style="font-weight: 700; background: rgba(255,255,255,0.03); border-color: var(--border); color: var(--muted); font-size: 13px;">$</span>
+            <input type="number" id="metric-rev-max" class="form-control" placeholder="50" min="0" step="any" style="font-size: 13px;">
+            <select id="metric-rev-max-unit" class="form-select" onchange="updateMetricLivePreview()" style="max-width: 65px; font-weight: 700; font-size: 12px; padding-left: 8px; padding-right: 20px;">
+              <option value="K">K</option>
+              <option value="M" selected>M</option>
+              <option value="B">B</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; display: block;">Quick Presets</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <button type="button" class="btn btn-sm btn-light rev-preset-btn" onclick="setRevPreset('500', 'K', '2', 'M')" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">$500K - $2M</button>
+          <button type="button" class="btn btn-sm btn-light rev-preset-btn" onclick="setRevPreset('1', 'M', '10', 'M')" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">$1M - $10M</button>
+          <button type="button" class="btn btn-sm btn-light rev-preset-btn" onclick="setRevPreset('10', 'M', '50', 'M')" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">$10M - $50M</button>
+          <button type="button" class="btn btn-sm btn-light rev-preset-btn" onclick="setRevPreset('50', 'M', '250', 'M')" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">$50M - $250M</button>
+          <button type="button" class="btn btn-sm btn-light rev-preset-btn" onclick="setRevPreset('100', 'M', '1', 'B')" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">$100M - $1B</button>
+          <button type="button" class="btn btn-sm btn-light rev-preset-btn" onclick="setRevPreset('1', 'B', '', 'B')" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">$1B+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: Employee Count Form -->
+    <div id="metric-form-employees" class="metric-form-panel" style="display: none;">
+      <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 12px;">
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; display: block;">Min Headcount</label>
+          <input type="number" id="metric-emp-min" class="form-control" placeholder="100" min="1" style="font-size: 13px;">
+        </div>
+        <span style="color: var(--muted); font-size: 12px; font-weight: 700; margin-top: 18px;">to</span>
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; display: block;">Max Headcount</label>
+          <input type="number" id="metric-emp-max" class="form-control" placeholder="500" min="1" style="font-size: 13px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; display: block;">Quick Presets</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <button type="button" class="btn btn-sm btn-light emp-preset-btn" onclick="setEmpPreset(1, 50)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">1 - 50</button>
+          <button type="button" class="btn btn-sm btn-light emp-preset-btn" onclick="setEmpPreset(51, 200)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">51 - 200</button>
+          <button type="button" class="btn btn-sm btn-light emp-preset-btn" onclick="setEmpPreset(201, 500)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">201 - 500</button>
+          <button type="button" class="btn btn-sm btn-light emp-preset-btn" onclick="setEmpPreset(501, 1000)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">501 - 1,000</button>
+          <button type="button" class="btn btn-sm btn-light emp-preset-btn" onclick="setEmpPreset(1000, 5000)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">1,000 - 5,000</button>
+          <button type="button" class="btn btn-sm btn-light emp-preset-btn" onclick="setEmpPreset(5000, '')" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">5,000+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: Company Size Form -->
+    <div id="metric-form-company-size" class="metric-form-panel" style="display: none;">
+      <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 12px;">
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; display: block;">Min Headcount</label>
+          <input type="number" id="metric-comp-min" class="form-control" placeholder="51" min="1" style="font-size: 13px;">
+        </div>
+        <span style="color: var(--muted); font-size: 12px; font-weight: 700; margin-top: 18px;">to</span>
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; display: block;">Max Headcount</label>
+          <input type="number" id="metric-comp-max" class="form-control" placeholder="200" min="1" style="font-size: 13px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; display: block;">Quick Presets</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          <button type="button" class="btn btn-sm btn-light comp-size-preset-btn" onclick="setCompSizePreset(1, 10)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">1 - 10</button>
+          <button type="button" class="btn btn-sm btn-light comp-size-preset-btn" onclick="setCompSizePreset(11, 50)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">11 - 50</button>
+          <button type="button" class="btn btn-sm btn-light comp-size-preset-btn" onclick="setCompSizePreset(51, 200)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">51 - 200</button>
+          <button type="button" class="btn btn-sm btn-light comp-size-preset-btn" onclick="setCompSizePreset(201, 500)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">201 - 500</button>
+          <button type="button" class="btn btn-sm btn-light comp-size-preset-btn" onclick="setCompSizePreset(501, 1000)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">501 - 1,000</button>
+          <button type="button" class="btn btn-sm btn-light comp-size-preset-btn" onclick="setCompSizePreset(1000, 5000)" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">1,000 - 5,000</button>
+          <button type="button" class="btn btn-sm btn-light comp-size-preset-btn" onclick="setCompSizePreset(5000, '')" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;">5,000+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Validation Error Alert -->
+    <div id="metric-validation-error" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 12px; color: #ef4444; font-weight: 600; align-items: center; gap: 8px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink: 0;">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <span id="metric-validation-error-text">Maximum value must be greater than minimum value.</span>
+    </div>
+
+    <!-- Live Preview Banner -->
+    <div style="background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.18); border-radius: 10px; padding: 10px 14px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+      <span style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Formatted Preview:</span>
+      <span id="metric-live-preview" style="font-size: 13px; font-weight: 700; color: #6366f1;">—</span>
+    </div>
+
+    <!-- Buttons -->
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        style="padding: 7px 16px; font-size: 13px;"
+        onclick="closeIcpMetricModal()"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        id="save-icp-metric-btn"
+        class="btn btn-primary btn-sm"
+        style="padding: 7px 20px; font-size: 13px; font-weight: 700;"
+        onclick="saveIcpMetricModal()"
+      >
+        Save Changes
       </button>
     </div>
   </div>
@@ -972,7 +1540,20 @@
       </div>
     </div>
 
-    <div style="display: flex; justify-content: flex-end; margin-top: 20px">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; gap: 12px;">
+      <button
+        type="button"
+        id="btn-stop-discovery"
+        class="btn btn-danger btn-sm"
+        style="padding: 8px 18px; font-size: 13px; font-weight: 700; background: #dc2626; border: 1px solid #b91c1c; color: #ffffff; display: {% if active_run_id %}inline-flex{% else %}none{% endif %}; align-items: center; gap: 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;"
+        onclick="stopActiveDiscovery()"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <rect x="4" y="4" width="16" height="16" rx="2" />
+        </svg>
+        <span>Stop Discovery</span>
+      </button>
+
       <button
         type="button"
         class="btn btn-secondary btn-sm"
@@ -988,6 +1569,32 @@
 </div>
 
 <style>
+  .btn-icp-metric-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    cursor: pointer;
+    margin-left: 4px;
+    padding: 0;
+    transition: all 0.15s ease;
+  }
+  .btn-icp-metric-edit:hover {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #6366f1;
+    transform: translateY(-1px);
+  }
+  .rev-unit-btn.active {
+    background: #6366f1 !important;
+    border-color: #6366f1 !important;
+    color: #fff !important;
+  }
   @keyframes spin {
     0% {
       transform: rotate(0deg);
@@ -1001,11 +1608,41 @@
   }
 </style>
 
+<!-- Pulse Expired Warning Modal -->
+<div id="pulseExpiredModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 100000; align-items: center; justify-content: center;">
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 90%; max-width: 480px; padding: 24px; box-shadow: var(--shadow-lg);">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
+      <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(212, 0, 0, 0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <div>
+        <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text);">Campaign End Date Passed</h4>
+        <div style="font-size: 12px; color: var(--muted);">Pulse scheduled timeframe reached</div>
+      </div>
+    </div>
+    <p id="pulseExpiredModalMsg" style="font-size: 13px; line-height: 1.6; color: var(--muted); margin-bottom: 22px;">
+      The end date for this pulse has passed. Please edit your pulse and extend the end date to run discovery.
+    </p>
+    <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('pulseExpiredModal').style.display = 'none'" style="font-size: 12px; padding: 7px 16px;">
+        Dismiss
+      </button>
+      <a id="pulseExpiredModalEditBtn" href="{% url 'prospect_pulse:prospect_pulse_edit' pulse.uid %}" class="btn btn-primary btn-sm" style="font-size: 12px; padding: 7px 16px; display: inline-flex; align-items: center; gap: 6px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Edit Pulse & Extend End Date
+      </a>
+    </div>
+  </div>
+</div>
+
 <script>
   window.PULSE_CONFIG = {
     manageItemUrl: "{% url 'prospect_pulse:pulse_manage_item' pulse.uid %}",
     deleteUrl: "{% url 'prospect_pulse:prospect_pulse_delete' pulse.uid %}",
     listUrl: "{% url 'prospect_pulse:prospect_pulse_list' %}",
+    editUrl: "{% url 'prospect_pulse:prospect_pulse_edit' pulse.uid %}",
+    isExpired: {% if pulse.is_expired %}true{% else %}false{% endif %},
+    endDateFormatted: "{{ pulse.end_date|date:'d/m/Y'|default:'' }}",
     csrfToken: "{{ csrf_token }}",
     activeRunId: {% if active_run_id %}{{ active_run_id }}{% else %}null{% endif %}
   };

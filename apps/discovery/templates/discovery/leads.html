@@ -8,7 +8,9 @@
       <div>
         <h1 class="ll-hero-title">
           Leads
-          <span class="ll-hero-count">{{ counts.leads }}</span>
+          <span class="ll-hero-count" id="hero-count-leads"
+            >{{ counts.leads }}</span
+          >
         </h1>
         <p class="ll-hero-sub">
           Manage prospects, target accounts, and strategic competitors extracted
@@ -129,6 +131,7 @@
           Leads
         </div>
         <div
+          id="kpi-count-leads"
           style="
             font-size: 32px;
             font-weight: 800;
@@ -175,6 +178,7 @@
           Companies
         </div>
         <div
+          id="kpi-count-companies"
           style="
             font-size: 32px;
             font-weight: 800;
@@ -219,6 +223,7 @@
           Competitors
         </div>
         <div
+          id="kpi-count-competitors"
           style="
             font-size: 32px;
             font-weight: 800;
@@ -260,6 +265,7 @@
     >
       Leads
       <span
+        id="tab-badge-leads"
         style="
           background: rgba(220, 38, 38, 0.08);
           color: var(--accent);
@@ -290,6 +296,7 @@
     >
       Companies
       <span
+        id="tab-badge-companies"
         style="
           background: rgba(34, 197, 94, 0.08);
           color: var(--success);
@@ -320,6 +327,7 @@
     >
       Competitors
       <span
+        id="tab-badge-competitors"
         style="
           background: rgba(0, 0, 0, 0.08);
           color: var(--text);
@@ -351,9 +359,58 @@
           transition: all 0.3s ease;
         "
       >
-        <div style="display: flex; align-items: center; gap: 12px">
+        <div
+          style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap"
+        >
           <span style="font-weight: 700; color: var(--accent); font-size: 13px">
             <span id="selected-count">0</span> selected
+          </span>
+          <span
+            id="select-all-pages-wrapper"
+            style="display: none; font-size: 12px; color: var(--text)"
+          >
+            <span style="color: var(--muted)">(on this page).</span>
+            <a
+              id="btn-select-all-pages"
+              href="javascript:void(0)"
+              style="
+                color: var(--accent);
+                font-weight: 700;
+                text-decoration: underline;
+                margin-left: 4px;
+                cursor: pointer;
+              "
+            >
+              Select all <span id="select-all-total-count">0</span> leads across
+              all pages
+            </a>
+          </span>
+          <span
+            id="all-pages-selected-notice"
+            style="
+              display: none;
+              font-size: 12px;
+              color: #16a34a;
+              font-weight: 600;
+            "
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#16a34a"
+              stroke-width="2.5"
+              style="
+                display: inline-block;
+                vertical-align: middle;
+                margin-right: 3px;
+              "
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            All <span id="all-pages-total-count">0</span> leads across all pages
+            selected.
           </span>
           <button
             id="btn-clear-selection"
@@ -372,7 +429,88 @@
             Clear
           </button>
         </div>
-        <div style="display: flex; align-items: center; gap: 10px">
+        <div
+          style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"
+        >
+          <!-- Bulk Export Control -->
+          <div
+            style="
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              background: var(--surface);
+              border: 1px solid var(--border);
+              padding: 2px 4px 2px 8px;
+              border-radius: 6px;
+            "
+          >
+            <label
+              for="bulk-export-format"
+              style="
+                font-size: 11px;
+                color: var(--muted);
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                margin: 0;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+              "
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Format:
+            </label>
+            <select
+              id="bulk-export-format"
+              style="
+                background: transparent;
+                border: none;
+                color: var(--text);
+                font-size: 11px;
+                font-weight: 700;
+                cursor: pointer;
+                outline: none;
+                padding: 4px 2px;
+              "
+            >
+              <option value="excel" selected>Excel (.xlsx)</option>
+              <option value="pdf">PDF (.pdf)</option>
+              <option value="doc">Word Doc (.docx)</option>
+            </select>
+            <button
+              id="btn-bulk-export"
+              type="button"
+              data-pulse-name="{{ pulse.name|escape }}"
+              class="btn btn-secondary btn-sm"
+              style="
+                font-size: 11px;
+                padding: 4px 12px;
+                border-radius: 4px;
+                font-weight: 700;
+                background: var(--surface2);
+                color: var(--text);
+                border: 1px solid var(--border2);
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+              "
+            >
+              Export
+            </button>
+          </div>
+
           <button
             id="btn-bulk-add-campaign"
             type="button"
@@ -490,6 +628,9 @@
                 <input type="checkbox" id="check-all-leads" />
               </th>
               <th style="padding: 12px 16px">LEAD</th>
+              <th style="padding: 12px 16px; white-space: nowrap">
+                PUBLISHED DATE
+              </th>
               <th style="padding: 12px 16px">ACCOUNT</th>
               <th style="padding: 12px 16px">EMAIL</th>
               <th style="padding: 12px 16px">PHONE</th>
@@ -499,9 +640,11 @@
               <th style="padding: 12px 16px; text-align: right">ACTIONS</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="leads-tbody">
             {% if leads %} {% for lead in leads %}
             <tr
+              id="lead-row-{{ lead.id }}"
+              class="lead-row-item"
               style="
                 border-bottom: 1px solid var(--border);
                 vertical-align: middle;
@@ -512,24 +655,94 @@
                   type="checkbox"
                   class="lead-checkbox"
                   data-id="{{ lead.id }}"
+                  data-name="{{ lead.name }}"
+                  data-email="{{ lead.email|default:'' }}"
+                  data-phone="{{ lead.phone|default:'' }}"
                 />
               </td>
               <td style="padding: 14px 16px">
-                <div style="font-weight: 700; color: var(--accent)">
-                  {{ lead.name }}
-                </div>
-                {% if lead.designation %}
-                <div
-                  style="
-                    font-size: 11px;
-                    color: var(--muted);
-                    font-weight: 400;
-                    margin-top: 2px;
+                <a
+                  href="javascript:void(0)"
+                  class="btn-lead-card-trigger"
+                  onclick="
+                    openLeadCardFromElement(this);
+                    return false;
                   "
+                  data-id="{{ lead.id }}"
+                  data-name="{{ lead.name|escape }}"
+                  data-designation="{{ lead.designation|default:''|escape }}"
+                  data-account="{{ lead.organization_name|default:''|escape }}"
+                  data-email="{{ lead.email|default:''|escape }}"
+                  data-phone="{{ lead.phone|default:''|escape }}"
+                  data-linkedin="{{ lead.linkedin_url|default:''|escape }}"
+                  data-score="{{ lead.score|default:50 }}"
+                  data-signal="{{ lead.buying_signal|default:'General B2B Intent'|escape }}"
+                  data-reason="{{ lead.reason|default:''|escape }}"
+                  data-source-title="{{ lead.source_article.title|default:''|escape }}"
+                  data-source-url="{{ lead.source_article.url|default:''|escape }}"
+                  data-source-publisher="{{ lead.source_article.source|default:''|escape }}"
+                  data-source-date="{{ lead.article_date_display }}"
+                  data-assigned-campaign="{{ lead.assigned_campaign_name|default:''|escape }}"
+                  style="
+                    text-decoration: none;
+                    color: inherit;
+                    display: inline-block;
+                    cursor: pointer;
+                  "
+                  title="Click to view full lead details"
                 >
-                  {{ lead.designation }}
+                  <div
+                    style="
+                      font-weight: 700;
+                      color: var(--accent);
+                      font-size: 13.5px;
+                      display: inline-flex;
+                      align-items: center;
+                      gap: 6px;
+                    "
+                  >
+                    <span>{{ lead.name }}</span>
+                  </div>
+
+                  {% if lead.designation %}
+                  <div
+                    style="
+                      font-size: 11px;
+                      color: var(--muted);
+                      font-weight: 400;
+                      margin-top: 2px;
+                    "
+                  >
+                    {{ lead.designation }}
+                  </div>
+                  {% endif %}
+                </a>
+              </td>
+              <td
+                style="
+                  padding: 14px 16px;
+                  white-space: nowrap;
+                  font-size: 12px;
+                  color: var(--muted);
+                "
+              >
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    style="color: var(--muted); flex-shrink: 0"
+                  >
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <span>{{ lead.article_date_display }}</span>
                 </div>
-                {% endif %}
               </td>
               <td
                 style="padding: 14px 16px; font-weight: 600; color: var(--text)"
@@ -585,6 +798,9 @@
                     href="#"
                     class="btn-row-add-campaign"
                     data-id="{{ lead.id }}"
+                    data-name="{{ lead.name }}"
+                    data-email="{{ lead.email|default:'' }}"
+                    data-phone="{{ lead.phone|default:'' }}"
                     style="
                       font-size: 10px;
                       color: var(--muted);
@@ -598,6 +814,9 @@
                 <button
                   class="btn-add-campaign-dashed btn-row-add-campaign"
                   data-id="{{ lead.id }}"
+                  data-name="{{ lead.name }}"
+                  data-email="{{ lead.email|default:'' }}"
+                  data-phone="{{ lead.phone|default:'' }}"
                 >
                   + Add to Campaign
                 </button>
@@ -638,9 +857,9 @@
               <td style="padding: 14px 16px">
                 <button
                   class="btn btn-secondary btn-sm btn-view-article"
-                  data-title="{{ lead.source_article.title|escapejs }}"
-                  data-source="{{ lead.source_article.source|escapejs }}"
-                  data-url="{{ lead.source_article.url|escapejs }}"
+                  data-title="{{ lead.source_article.title|default:'Source Article'|escape }}"
+                  data-source="{{ lead.source_article.source|default:'Verified Source'|escape }}"
+                  data-url="{{ lead.source_article.url|default:'#'|escape }}"
                   style="
                     font-size: 11px;
                     padding: 4px 10px;
@@ -677,6 +896,59 @@
                     justify-content: flex-end;
                   "
                 >
+                  <!-- View Lead Details Card Button -->
+                  <button
+                    type="button"
+                    class="btn-lead-card-trigger"
+                    title="View Lead Information Card"
+                    onclick="
+                      openLeadCardFromElement(this);
+                      return false;
+                    "
+                    data-id="{{ lead.id }}"
+                    data-name="{{ lead.name|escape }}"
+                    data-designation="{{ lead.designation|default:''|escape }}"
+                    data-account="{{ lead.organization_name|default:''|escape }}"
+                    data-email="{{ lead.email|default:''|escape }}"
+                    data-phone="{{ lead.phone|default:''|escape }}"
+                    data-linkedin="{{ lead.linkedin_url|default:''|escape }}"
+                    data-score="{{ lead.score|default:50 }}"
+                    data-signal="{{ lead.buying_signal|default:'General B2B Intent'|escape }}"
+                    data-reason="{{ lead.reason|default:''|escape }}"
+                    data-source-title="{{ lead.source_article.title|default:''|escape }}"
+                    data-source-url="{{ lead.source_article.url|default:''|escape }}"
+                    data-source-publisher="{{ lead.source_article.source|default:''|escape }}"
+                    data-source-date="{{ lead.article_date_display }}"
+                    data-assigned-campaign="{{ lead.assigned_campaign_name|default:''|escape }}"
+                    style="
+                      background: transparent;
+                      border: none;
+                      padding: 6px;
+                      color: var(--muted);
+                      cursor: pointer;
+                      display: inline-flex;
+                      align-items: center;
+                      justify-content: center;
+                      transition: color 0.2s ease;
+                    "
+                    onmouseover="this.style.color = 'var(--accent)'"
+                    onmouseout="this.style.color = 'var(--muted)'"
+                  >
+                    <svg
+                      width="17"
+                      height="17"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </button>
+
                   <!-- Enrich Lead Button -->
                   <button
                     class="btn-enrich btn-row-enrich"
@@ -729,9 +1001,9 @@
               </td>
             </tr>
             {% endfor %} {% else %}
-            <tr>
+            <tr class="empty-placeholder-row">
               <td
-                colspan="9"
+                colspan="10"
                 style="
                   padding: 40px;
                   text-align: center;
@@ -745,6 +1017,141 @@
             {% endif %}
           </tbody>
         </table>
+      </div>
+
+      <!-- Leads Pagination Bar -->
+      <div
+        id="leads-pagination-bar"
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 20px;
+          border-top: 1px solid var(--border);
+          background: rgba(255, 255, 255, 0.015);
+          border-bottom-left-radius: 12px;
+          border-bottom-right-radius: 12px;
+          flex-wrap: wrap;
+          gap: 12px;
+          font-size: 12.5px;
+        "
+      >
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            color: var(--muted);
+            flex-wrap: wrap;
+          "
+        >
+          <span id="leads-pagination-info">
+            Showing
+            <strong id="leads-count-start" style="color: var(--text)">1</strong
+            >–<strong id="leads-count-end" style="color: var(--text)"
+              >25</strong
+            >
+            of
+            <strong id="leads-count-total" style="color: var(--text)"
+              >{{ leads|length }}</strong
+            >
+            leads
+          </span>
+          <div style="display: inline-flex; align-items: center; gap: 6px">
+            <label
+              for="leads-per-page-select"
+              style="
+                font-size: 11.5px;
+                color: var(--muted);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                font-weight: 600;
+              "
+              >Per page:</label
+            >
+            <select
+              id="leads-per-page-select"
+              style="
+                background: var(--surface);
+                border: 1px solid var(--border);
+                color: var(--text);
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                outline: none;
+              "
+            >
+              <option value="20">20</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <div
+          id="leads-pagination-nav"
+          style="display: flex; align-items: center; gap: 6px"
+        >
+          <button
+            id="leads-page-prev"
+            type="button"
+            class="btn btn-secondary btn-sm"
+            style="
+              padding: 4px 10px;
+              font-size: 12px;
+              border-radius: 6px;
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+            "
+            title="Previous Page"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            Prev
+          </button>
+          <div
+            id="leads-page-numbers"
+            style="display: flex; align-items: center; gap: 4px"
+          ></div>
+          <button
+            id="leads-page-next"
+            type="button"
+            class="btn btn-secondary btn-sm"
+            style="
+              padding: 4px 10px;
+              font-size: 12px;
+              border-radius: 6px;
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+            "
+            title="Next Page"
+          >
+            Next
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -775,17 +1182,21 @@
               <th style="padding: 12px 16px; text-align: center; width: 100px">
                 CONFIDENCE
               </th>
-              <th style="padding: 12px 16px; text-align: right; width: 100px">
+              <th style="padding: 12px 16px; text-align: right; width: 120px">
                 ACTIONS
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="companies-tbody">
             {% if companies %} {% for comp in companies %}
             <tr
+              id="company-row-{{ comp.id }}"
               style="
                 border-bottom: 1px solid var(--border);
                 vertical-align: middle;
+                transition:
+                  opacity 0.3s ease,
+                  transform 0.3s ease;
               "
             >
               <td
@@ -827,13 +1238,68 @@
                 {{ comp.score }}%
               </td>
               <td style="padding: 14px 16px; text-align: right">
-                <div style="display: inline-flex; gap: 8px">
-                  <a href="#" style="color: var(--muted)"
-                    ><i class="far fa-eye"></i
-                  ></a>
-                  <a href="#" style="color: var(--muted)"
-                    ><i class="far fa-trash-alt"></i
-                  ></a>
+                <div
+                  style="display: inline-flex; gap: 10px; align-items: center"
+                >
+                  <!-- Eye Icon: View Source Article -->
+                  <a
+                    href="javascript:void(0)"
+                    onclick="
+                      openArticleModalFromElement(this);
+                      return false;
+                    "
+                    data-title="{{ comp.source_article.title|default:'Source Article'|escape }}"
+                    data-source="{{ comp.source_article.source|default:'Verified Source'|escape }}"
+                    data-url="{{ comp.source_article.url|default:'#'|escape }}"
+                    title="View Source Article"
+                    style="
+                      color: var(--muted);
+                      padding: 4px;
+                      font-size: 14px;
+                      cursor: pointer;
+                      transition: color 0.2s;
+                    "
+                    onmouseover="this.style.color = 'var(--accent)'"
+                    onmouseout="this.style.color = 'var(--muted)'"
+                  >
+                    <i class="far fa-eye"></i>
+                  </a>
+
+                  <!-- Move to Competitors Icon -->
+                  <a
+                    href="javascript:void(0)"
+                    onclick="confirmMoveCompanyToCompetitor({{ comp.id }}, '{{ comp.name|escapejs }}'); return false;"
+                    title="Move to Competitors"
+                    style="
+                      color: var(--muted);
+                      padding: 4px;
+                      font-size: 14px;
+                      cursor: pointer;
+                      transition: color 0.2s;
+                    "
+                    onmouseover="this.style.color = '#f59e0b'"
+                    onmouseout="this.style.color = 'var(--muted)'"
+                  >
+                    <i class="fas fa-shield-alt"></i>
+                  </a>
+
+                  <!-- Trash Icon: Delete Company & Leads -->
+                  <a
+                    href="javascript:void(0)"
+                    onclick="confirmDeleteCompany({{ comp.id }}, '{{ comp.name|escapejs }}'); return false;"
+                    title="Delete Company and Associated Leads"
+                    style="
+                      color: var(--muted);
+                      padding: 4px;
+                      font-size: 14px;
+                      cursor: pointer;
+                      transition: color 0.2s;
+                    "
+                    onmouseover="this.style.color = '#ef4444'"
+                    onmouseout="this.style.color = 'var(--muted)'"
+                  >
+                    <i class="far fa-trash-alt"></i>
+                  </a>
                 </div>
               </td>
             </tr>
@@ -860,6 +1326,100 @@
 
   <!-- Tab Panel: Competitors -->
   <div id="panel-competitors" class="view-panel">
+    <!-- Sub-tabs for Direct vs Indirect vs All Competitors -->
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+        gap: 12px;
+      "
+    >
+      <div
+        style="
+          display: inline-flex;
+          background: rgba(15, 23, 42, 0.05);
+          padding: 3px;
+          border-radius: 9px;
+          gap: 3px;
+          border: 1px solid var(--border);
+        "
+      >
+        <button
+          type="button"
+          id="comp-tab-all"
+          onclick="filterCompetitorsByType('all')"
+          style="
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: var(--surface, #fff);
+            color: var(--text, #0f172a);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+            transition: all 0.2s;
+          "
+        >
+          All Competitors ({{ counts.competitors }})
+        </button>
+        <button
+          type="button"
+          id="comp-tab-direct"
+          onclick="filterCompetitorsByType('direct')"
+          style="
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: transparent;
+            color: var(--muted, #64748b);
+            transition: all 0.2s;
+          "
+        >
+          <i
+            class="fas fa-crosshairs"
+            style="color: var(--accent, #dc2626); margin-right: 4px"
+          ></i>
+          Direct Competitors ({{ direct_competitors_count }})
+        </button>
+        <button
+          type="button"
+          id="comp-tab-indirect"
+          onclick="filterCompetitorsByType('indirect')"
+          style="
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: transparent;
+            color: var(--muted, #64748b);
+            transition: all 0.2s;
+          "
+        >
+          <i
+            class="fas fa-random"
+            style="color: #d97706; margin-right: 4px"
+          ></i>
+          Indirect Alternatives ({{ indirect_competitors_count }})
+        </button>
+      </div>
+      <div style="font-size: 12px; color: var(--muted, #64748b)">
+        <span
+          >Showing
+          <strong id="comp-visible-count">{{ counts.competitors }}</strong> of
+          {{ counts.competitors }} competitors</span
+        >
+      </div>
+    </div>
+
     <div class="detail-card">
       <div style="overflow-x: auto">
         <table
@@ -879,53 +1439,232 @@
               "
             >
               <th style="padding: 12px 16px">COMPETITOR NAME</th>
+              <th style="padding: 12px 16px; width: 155px">TYPE</th>
               <th style="padding: 12px 16px">SIGNAL</th>
               <th style="padding: 12px 16px">REASON</th>
-              <th style="padding: 12px 16px; text-align: right; width: 100px">
+              <th style="padding: 12px 16px; text-align: right; width: 120px">
                 ACTIONS
               </th>
             </tr>
           </thead>
-          <tbody>
-            {% if competitors %} {% for comp in competitors %}
+          <tbody id="competitors-tbody">
+            {% if grouped_competitors %} {% for comp in grouped_competitors %}
             <tr
+              id="competitor-row-{{ comp.id }}"
+              data-competitor-name="{{ comp.name|escape }}"
+              data-competitor-type="{{ comp.competitor_type|default:'direct' }}"
               style="
                 border-bottom: 1px solid var(--border);
                 vertical-align: middle;
+                transition:
+                  opacity 0.3s ease,
+                  transform 0.3s ease;
               "
             >
               <td
                 style="padding: 14px 16px; font-weight: 700; color: var(--text)"
               >
-                {{ comp.name }}
+                <a
+                  href="javascript:void(0)"
+                  onclick="openCompetitorTimeline('{{ comp.name|escapejs }}'); return false;"
+                  style="
+                    font-weight: 700;
+                    color: var(--text);
+                    font-size: 13.5px;
+                    text-decoration: none;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                  "
+                  onmouseover="this.style.color = 'var(--accent)'"
+                  onmouseout="this.style.color = 'var(--text)'"
+                  title="Click to view competitive intelligence timeline"
+                >
+                  <span>{{ comp.name }}</span>
+                  <i
+                    class="fas fa-history"
+                    style="font-size: 11px; opacity: 0.5"
+                  ></i>
+                </a>
+              </td>
+              <td style="padding: 14px 16px; white-space: nowrap">
+                {% if comp.competitor_type == 'indirect' %}
+                <span
+                  style="
+                    background: rgba(245, 158, 11, 0.1);
+                    color: #d97706;
+                    border: 1px solid rgba(245, 158, 11, 0.25);
+                    font-weight: 700;
+                    padding: 3px 9px;
+                    border-radius: 12px;
+                    font-size: 11px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                  "
+                >
+                  <i class="fas fa-random" style="font-size: 10px"></i>
+                  Indirect Alternative
+                </span>
+                {% else %}
+                <span
+                  style="
+                    background: rgba(220, 38, 38, 0.08);
+                    color: var(--accent, #dc2626);
+                    border: 1px solid rgba(220, 38, 38, 0.2);
+                    font-weight: 700;
+                    padding: 3px 9px;
+                    border-radius: 12px;
+                    font-size: 11px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                  "
+                >
+                  <i class="fas fa-crosshairs" style="font-size: 10px"></i>
+                  Direct Competitor
+                </span>
+                {% endif %}
               </td>
               <td style="padding: 14px 16px">
                 <span
                   style="
-                    background: rgba(100, 116, 139, 0.08);
-                    color: var(--muted);
+                    background: rgba(15, 23, 42, 0.06);
+                    color: var(--text);
                     font-weight: 700;
-                    padding: 2px 8px;
+                    padding: 3px 10px;
                     border-radius: 12px;
                     font-size: 11px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    border: 1px solid var(--border);
                   "
                 >
-                  {{ comp.buying_signal|default:'Competitor Mentioned' }}
+                  <span
+                    style="
+                      display: inline-block;
+                      width: 6px;
+                      height: 6px;
+                      border-radius: 50%;
+                      background: var(--accent);
+                    "
+                  ></span>
+                  {{ comp.buying_signal|default:'Competitor Activity' }}
                 </span>
               </td>
               <td
-                style="padding: 14px 16px; color: var(--text); max-width: 450px"
+                style="
+                  padding: 14px 16px;
+                  color: var(--text);
+                  max-width: 450px;
+                  font-size: 12.5px;
+                  line-height: 1.45;
+                "
               >
                 {{ comp.reason }}
               </td>
               <td style="padding: 14px 16px; text-align: right">
-                <div style="display: inline-flex; gap: 8px">
-                  <a href="#" style="color: var(--muted)"
-                    ><i class="far fa-eye"></i
-                  ></a>
-                  <a href="#" style="color: var(--muted)"
-                    ><i class="far fa-trash-alt"></i
-                  ></a>
+                <div
+                  style="
+                    display: inline-flex;
+                    gap: 8px;
+                    align-items: center;
+                    justify-content: flex-end;
+                  "
+                >
+                  <!-- Timeline Button -->
+                  <a
+                    href="javascript:void(0)"
+                    onclick="openCompetitorTimeline('{{ comp.name|escapejs }}'); return false;"
+                    title="View Strategic Moves Timeline"
+                    style="
+                      color: var(--accent);
+                      background: rgba(220, 38, 38, 0.08);
+                      border: 1px solid rgba(220, 38, 38, 0.2);
+                      padding: 4px 8px;
+                      border-radius: 6px;
+                      font-size: 12px;
+                      font-weight: 700;
+                      cursor: pointer;
+                      text-decoration: none;
+                      display: inline-flex;
+                      align-items: center;
+                      gap: 4px;
+                      transition: all 0.2s;
+                    "
+                    onmouseover="
+                      this.style.background = 'var(--accent)';
+                      this.style.color = '#fff';
+                    "
+                    onmouseout="
+                      this.style.background = 'rgba(220, 38, 38, 0.08)';
+                      this.style.color = 'var(--accent)';
+                    "
+                  >
+                    <i class="fas fa-history"></i>
+                    <span>Timeline</span>
+                  </a>
+
+                  <!-- Eye Icon: View Source Article -->
+                  <a
+                    href="javascript:void(0)"
+                    onclick="
+                      openArticleModalFromElement(this);
+                      return false;
+                    "
+                    data-title="{{ comp.source_article.title|default:'Source Article'|escape }}"
+                    data-source="{{ comp.source_article.source|default:'Verified Source'|escape }}"
+                    data-url="{{ comp.source_article.url|default:'#'|escape }}"
+                    title="View Latest Source Article"
+                    style="
+                      color: var(--muted);
+                      padding: 4px;
+                      font-size: 14px;
+                      cursor: pointer;
+                      transition: color 0.2s;
+                    "
+                    onmouseover="this.style.color = 'var(--accent)'"
+                    onmouseout="this.style.color = 'var(--muted)'"
+                  >
+                    <i class="far fa-eye"></i>
+                  </a>
+
+                  <!-- Move to Target Companies Icon -->
+                  <a
+                    href="javascript:void(0)"
+                    onclick="confirmMoveCompetitorToCompany({{ comp.id }}, '{{ comp.name|escapejs }}'); return false;"
+                    title="Move to Target Companies"
+                    style="
+                      color: var(--muted);
+                      padding: 4px;
+                      font-size: 14px;
+                      cursor: pointer;
+                      transition: color 0.2s;
+                    "
+                    onmouseover="this.style.color = '#22c55e'"
+                    onmouseout="this.style.color = 'var(--muted)'"
+                  >
+                    <i class="fas fa-building"></i>
+                  </a>
+
+                  <!-- Trash Icon: Delete Competitor -->
+                  <a
+                    href="javascript:void(0)"
+                    onclick="confirmDeleteCompetitor({{ comp.id }}, '{{ comp.name|escapejs }}'); return false;"
+                    title="Delete Competitor"
+                    style="
+                      color: var(--muted);
+                      padding: 4px;
+                      font-size: 14px;
+                      cursor: pointer;
+                      transition: color 0.2s;
+                    "
+                    onmouseover="this.style.color = '#ef4444'"
+                    onmouseout="this.style.color = 'var(--muted)'"
+                  >
+                    <i class="far fa-trash-alt"></i>
+                  </a>
                 </div>
               </td>
             </tr>
@@ -951,7 +1690,535 @@
   </div>
 </div>
 
-<script src="{% static 'discovery/js/leads.js' %}"></script>
+<!-- Competitor Intelligence Timeline Drawer Backdrop -->
+<div
+  id="timelineDrawerBackdrop"
+  onclick="closeCompetitorTimeline()"
+  style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 10040;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+  "
+></div>
+
+<!-- Competitor Intelligence Timeline Drawer -->
+<div
+  id="competitorTimelineDrawer"
+  style="
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 580px;
+    max-width: 95vw;
+    height: 100vh;
+    background: #ffffff !important;
+    border-left: 1px solid var(--border, #e2e8f0);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.25);
+    z-index: 10050;
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    box-sizing: border-box;
+  "
+>
+  <!-- Drawer Header -->
+  <div
+    style="
+      padding: 22px 24px;
+      border-bottom: 1px solid var(--border, #e2e8f0);
+      background: #ffffff !important;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-shrink: 0;
+      box-sizing: border-box;
+      width: 100%;
+    "
+  >
+    <div style="flex: 1; min-width: 0">
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+          flex-wrap: wrap;
+        "
+      >
+        <span
+          style="
+            background: rgba(220, 38, 38, 0.1);
+            color: var(--accent, #dc2626);
+            font-size: 10px;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          "
+        >
+          Competitive Intelligence
+        </span>
+        <span
+          id="drawer-competitor-type-badge"
+          style="
+            background: rgba(220, 38, 38, 0.08);
+            border: 1px solid rgba(220, 38, 38, 0.2);
+            color: var(--accent, #dc2626);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 9px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+          "
+        >
+          <i class="fas fa-crosshairs" style="font-size: 9px"></i> Direct
+          Competitor
+        </span>
+        <span
+          id="drawer-moves-badge"
+          style="
+            background: rgba(220, 38, 38, 0.08);
+            border: 1px solid rgba(220, 38, 38, 0.25);
+            color: var(--accent, #dc2626);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 9px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+          "
+        >
+          <i class="fas fa-chart-line" style="font-size: 10px"></i>
+          <span id="drawer-moves-count-text">0 Moves Tracked</span>
+        </span>
+      </div>
+      <h2
+        id="drawer-competitor-name"
+        style="
+          margin: 0;
+          font-size: 20px;
+          font-weight: 800;
+          color: var(--text, #0f172a);
+          letter-spacing: -0.3px;
+          word-break: break-word;
+        "
+      >
+        Competitor Name
+      </h2>
+      <p
+        style="margin: 4px 0 0 0; font-size: 12px; color: var(--muted, #64748b)"
+      >
+        Longitudinal activity feed & strategic moves captured across discovery
+        runs
+      </p>
+    </div>
+    <button
+      type="button"
+      onclick="closeCompetitorTimeline()"
+      style="
+        background: none;
+        border: none;
+        color: var(--muted, #64748b);
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition:
+          color 0.2s,
+          background 0.2s;
+        flex-shrink: 0;
+      "
+      onmouseover="
+        this.style.color = 'var(--text, #0f172a)';
+        this.style.background = 'var(--border, #f1f5f9)';
+      "
+      onmouseout="
+        this.style.color = 'var(--muted, #64748b)';
+        this.style.background = 'none';
+      "
+      title="Close Drawer"
+    >
+      &times;
+    </button>
+  </div>
+
+  <!-- Drawer Body: Chronological Timeline Feed -->
+  <div
+    id="drawer-timeline-container"
+    style="
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 22px 24px;
+      background: #f8fafc !important;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      box-sizing: border-box;
+      width: 100%;
+    "
+  >
+    <!-- Dynamic Timeline Nodes rendered via JS -->
+  </div>
+
+  <!-- Drawer Footer: Status -->
+  <div
+    style="
+      padding: 16px 24px;
+      border-top: 1px solid var(--border, #e2e8f0);
+      background: #ffffff !important;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      box-sizing: border-box;
+      width: 100%;
+    "
+  >
+    <div
+      style="
+        font-size: 11.5px;
+        color: var(--muted, #64748b);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      "
+    >
+      <i
+        class="fas fa-satellite-dish"
+        style="color: var(--accent, #dc2626)"
+      ></i>
+      <span>Actively monitored by Prospect Pulse</span>
+    </div>
+    <button
+      type="button"
+      class="btn btn-secondary btn-sm"
+      onclick="closeCompetitorTimeline()"
+      style="padding: 6px 14px; font-weight: 700; font-size: 12px"
+    >
+      Close
+    </button>
+  </div>
+</div>
+
+<!-- Custom Delete Confirmation Modal -->
+<div
+  id="deleteConfirmModal"
+  class="custom-confirm-overlay"
+  style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    z-index: 10001;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  "
+>
+  <div
+    class="custom-confirm-box"
+    style="
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      max-width: 440px;
+      width: 92%;
+      padding: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+      text-align: left;
+      position: relative;
+    "
+  >
+    <div
+      style="
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 16px;
+      "
+    >
+      <div
+        style="
+          width: 42px;
+          height: 42px;
+          border-radius: 10px;
+          background: rgba(220, 38, 38, 0.1);
+          color: #ef4444;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          font-size: 18px;
+        "
+      >
+        <i class="far fa-trash-alt"></i>
+      </div>
+      <div>
+        <h4
+          id="delete-modal-title"
+          style="
+            font-weight: 800;
+            font-size: 16px;
+            color: var(--text);
+            margin: 0 0 6px 0;
+          "
+        >
+          Delete Item
+        </h4>
+        <div
+          id="delete-modal-message"
+          style="
+            font-size: 13px;
+            color: var(--muted);
+            margin: 0;
+            line-height: 1.5;
+          "
+        >
+          Are you sure you want to delete this item?
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="delete-modal-warning"
+      style="
+        display: none;
+        background: rgba(220, 38, 38, 0.06);
+        border: 1px solid rgba(220, 38, 38, 0.2);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 18px;
+        font-size: 12px;
+        color: #ef4444;
+        align-items: center;
+        gap: 8px;
+      "
+    >
+      <i class="fas fa-exclamation-triangle" style="flex-shrink: 0"></i>
+      <span id="delete-modal-warning-text"
+        >Associated contact leads will also be removed from this pulse.</span
+      >
+    </div>
+
+    <div
+      style="
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        border-top: 1px solid var(--border);
+        padding-top: 16px;
+      "
+    >
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        onclick="
+          document.getElementById('deleteConfirmModal').style.display = 'none'
+        "
+        style="
+          padding: 7px 16px;
+          font-size: 12.5px;
+          font-weight: 700;
+          border-radius: 6px;
+        "
+      >
+        Cancel
+      </button>
+      <button
+        id="delete-modal-confirm-btn"
+        type="button"
+        class="btn btn-primary btn-sm"
+        style="
+          padding: 7px 18px;
+          font-size: 12.5px;
+          font-weight: 700;
+          border-radius: 6px;
+          background: #dc2626;
+          border-color: #dc2626;
+          color: #fff;
+        "
+      >
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Move Confirmation Modal -->
+<div
+  id="moveConfirmModal"
+  class="custom-confirm-overlay"
+  style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    z-index: 10001;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  "
+>
+  <div
+    class="custom-confirm-box"
+    style="
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      max-width: 460px;
+      width: 92%;
+      padding: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+      text-align: left;
+      position: relative;
+    "
+  >
+    <div
+      style="
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 16px;
+      "
+    >
+      <div
+        id="move-modal-icon-container"
+        style="
+          width: 42px;
+          height: 42px;
+          border-radius: 10px;
+          background: rgba(245, 158, 11, 0.1);
+          color: #f59e0b;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          font-size: 18px;
+        "
+      >
+        <i id="move-modal-icon" class="fas fa-shield-alt"></i>
+      </div>
+      <div>
+        <h4
+          id="move-modal-title"
+          style="
+            font-weight: 800;
+            font-size: 16px;
+            color: var(--text);
+            margin: 0 0 6px 0;
+          "
+        >
+          Move Entity
+        </h4>
+        <div
+          id="move-modal-message"
+          style="
+            font-size: 13px;
+            color: var(--muted);
+            margin: 0;
+            line-height: 1.5;
+          "
+        >
+          Are you sure you want to move this entity?
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="move-modal-info"
+      style="
+        display: flex;
+        background: rgba(245, 158, 11, 0.08);
+        border: 1px solid rgba(245, 158, 11, 0.25);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 18px;
+        font-size: 12px;
+        color: #d97706;
+        align-items: flex-start;
+        gap: 8px;
+        line-height: 1.4;
+      "
+    >
+      <i
+        id="move-modal-info-icon"
+        class="fas fa-exclamation-triangle"
+        style="flex-shrink: 0; margin-top: 2px"
+      ></i>
+      <span id="move-modal-info-text"
+        >Note about lead removal or extraction.</span
+      >
+    </div>
+
+    <div
+      style="
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        border-top: 1px solid var(--border);
+        padding-top: 16px;
+      "
+    >
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        onclick="
+          document.getElementById('moveConfirmModal').style.display = 'none'
+        "
+        style="
+          padding: 7px 16px;
+          font-size: 12.5px;
+          font-weight: 700;
+          border-radius: 6px;
+        "
+      >
+        Cancel
+      </button>
+      <button
+        id="move-modal-confirm-btn"
+        type="button"
+        class="btn btn-primary btn-sm"
+        style="
+          padding: 7px 18px;
+          font-size: 12.5px;
+          font-weight: 700;
+          border-radius: 6px;
+          background: #f59e0b;
+          border-color: #f59e0b;
+          color: #fff;
+        "
+      >
+        Confirm Move
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- Custom Article Modal -->
 <div
@@ -1217,6 +2484,42 @@
         value=""
       />
 
+      <!-- In-Modal Validation Alert Box -->
+      <div
+        id="campaign-modal-error"
+        style="
+          display: none;
+          background: rgba(220, 38, 38, 0.08);
+          border: 1px solid rgba(220, 38, 38, 0.3);
+          border-radius: 8px;
+          padding: 10px 14px;
+          margin-bottom: 16px;
+          color: #ef4444;
+          font-size: 12px;
+          line-height: 1.4;
+          align-items: flex-start;
+          gap: 8px;
+        "
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          style="flex-shrink: 0; margin-top: 1px"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span
+          id="campaign-modal-error-text"
+          style="flex: 1; font-weight: 600"
+        ></span>
+      </div>
+
       <!-- CALL CAMPAIGN (BDR) -->
       <div style="margin-bottom: 16px">
         <label
@@ -1302,11 +2605,7 @@
           {% endif %}
         </select>
         <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
-          {% if email_campaigns %}
-            Adds to the automated email sequence.
-          {% else %}
-            No campaigns created. Create a campaign in Campaign tab.
-          {% endif %}
+          {% if email_campaigns %}Adds to the automated email sequence.{% else %}No campaigns created. Create a campaign in Campaign tab.{% endif %}
         </div>
       </div>
 
@@ -1377,4 +2676,2009 @@
     </form>
   </div>
 </div>
+
+<!-- Custom Lead Information Card Modal -->
+<div
+  id="leadDetailModal"
+  class="custom-confirm-overlay"
+  style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(8px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  "
+>
+  <div
+    class="custom-confirm-box"
+    style="
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      max-width: 650px;
+      width: 95%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px 30px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+      text-align: left;
+      position: relative;
+    "
+  >
+    <!-- Close button -->
+    <button
+      type="button"
+      onclick="
+        document.getElementById('leadDetailModal').style.display = 'none'
+      "
+      style="
+        position: absolute;
+        top: 20px;
+        right: 22px;
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: 24px;
+        cursor: pointer;
+        line-height: 1;
+        opacity: 0.7;
+        padding: 4px;
+        transition: opacity 0.2s;
+      "
+      onmouseover="this.style.opacity = '1'"
+      onmouseout="this.style.opacity = '0.7'"
+      title="Close details"
+    >
+      &times;
+    </button>
+
+    <!-- Header: Avatar + Name + Title + Intent Score -->
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 22px;
+        padding-right: 32px;
+      "
+    >
+      <div
+        id="lead-card-avatar"
+        style="
+          width: 52px;
+          height: 52px;
+          border-radius: 14px;
+          background: linear-gradient(
+            135deg,
+            rgba(220, 38, 38, 0.12),
+            rgba(220, 38, 38, 0.25)
+          );
+          color: var(--accent);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 19px;
+          font-weight: 800;
+          flex-shrink: 0;
+          border: 1px solid rgba(220, 38, 38, 0.2);
+        "
+      >
+        LD
+      </div>
+      <div style="flex: 1; min-width: 0">
+        <div
+          style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"
+        >
+          <h4
+            id="lead-card-name"
+            style="
+              font-weight: 800;
+              font-size: 19px;
+              color: var(--text);
+              margin: 0;
+              word-break: break-word;
+            "
+          >
+            Lead Name
+          </h4>
+          <span
+            id="lead-card-score-badge"
+            style="
+              background: rgba(220, 38, 38, 0.08);
+              color: var(--accent);
+              font-size: 11px;
+              font-weight: 700;
+              padding: 3px 10px;
+              border-radius: 14px;
+              border: 1px solid rgba(220, 38, 38, 0.2);
+            "
+          >
+            85 Intent Score
+          </span>
+        </div>
+        <div
+          id="lead-card-designation"
+          style="
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 3px;
+            font-weight: 500;
+          "
+        >
+          Designation / Role
+        </div>
+      </div>
+    </div>
+
+    <!-- Content Sections -->
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-bottom: 24px;
+      "
+    >
+      <!-- Account / Company -->
+      <div
+        style="
+          background: var(--surface2);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 14px 18px;
+        "
+      >
+        <div
+          style="
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--muted);
+            margin-bottom: 6px;
+          "
+        >
+          Account / Company
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            style="color: var(--muted); flex-shrink: 0"
+          >
+            <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+            <path d="M9 22v-4h6v4" />
+            <path d="M8 6h.01" />
+            <path d="M16 6h.01" />
+            <path d="M12 6h.01" />
+            <path d="M12 10h.01" />
+            <path d="M12 14h.01" />
+            <path d="M16 10h.01" />
+            <path d="M16 14h.01" />
+            <path d="M8 10h.01" />
+            <path d="M8 14h.01" />
+          </svg>
+          <span
+            id="lead-card-account"
+            style="font-size: 14.5px; font-weight: 700; color: var(--text)"
+            >Company Name</span
+          >
+        </div>
+      </div>
+
+      <!-- Contact Info: Phone & Email Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
+        <!-- Phone Card -->
+        <div
+          style="
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 18px;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 6px;
+            "
+          >
+            <span
+              style="
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                color: var(--muted);
+              "
+            >
+              Phone Number
+            </span>
+            <span
+              id="lead-card-phone-status"
+              class="badge"
+              style="font-size: 10px; padding: 2px 7px"
+              >Available</span
+            >
+          </div>
+          <div
+            id="lead-card-phone-container"
+            style="font-size: 13.5px; font-weight: 600; margin-top: 2px"
+          >
+            <a
+              id="lead-card-phone"
+              href="#"
+              style="color: var(--text); text-decoration: none"
+              >—</a
+            >
+          </div>
+        </div>
+
+        <!-- Email Card -->
+        <div
+          style="
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 18px;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 6px;
+            "
+          >
+            <span
+              style="
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                color: var(--muted);
+              "
+            >
+              Email Address
+            </span>
+            <span
+              id="lead-card-email-status"
+              class="badge"
+              style="font-size: 10px; padding: 2px 7px"
+              >Available</span
+            >
+          </div>
+          <div
+            id="lead-card-email-container"
+            style="
+              font-size: 13.5px;
+              font-weight: 600;
+              margin-top: 2px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            "
+          >
+            <a
+              id="lead-card-email"
+              href="#"
+              style="color: var(--text); text-decoration: none"
+              >—</a
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- LinkedIn Profile Card -->
+      <div
+        id="lead-card-linkedin-section"
+        style="
+          background: var(--surface2);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 14px 18px;
+        "
+      >
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+          "
+        >
+          <span
+            style="
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.6px;
+              color: var(--muted);
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+            "
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="#0A66C2"
+              style="flex-shrink: 0"
+            >
+              <path
+                d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"
+              />
+            </svg>
+            LinkedIn Profile
+          </span>
+          <span
+            id="lead-card-linkedin-status"
+            class="badge"
+            style="font-size: 10px; padding: 2px 7px"
+            >Available</span
+          >
+        </div>
+        <div
+          id="lead-card-linkedin-container"
+          style="
+            font-size: 13.5px;
+            font-weight: 600;
+            margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          "
+        >
+          <a
+            id="lead-card-linkedin"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            style="
+              color: #0a66c2;
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+            "
+          >
+            <span id="lead-card-linkedin-text">—</span>
+            <svg
+              id="lead-card-linkedin-icon"
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              style="display: none"
+            >
+              <path
+                d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+              ></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- Buying Signal & Qualification -->
+      <div
+        style="
+          background: var(--surface2);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 14px 18px;
+        "
+      >
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+          "
+        >
+          <span
+            style="
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.6px;
+              color: var(--muted);
+            "
+          >
+            Intent Signal & Rationale
+          </span>
+          <span
+            id="lead-card-signal"
+            style="
+              background: rgba(22, 163, 74, 0.08);
+              color: #16a34a;
+              font-size: 11px;
+              font-weight: 700;
+              padding: 3px 10px;
+              border-radius: 12px;
+              border: 1px solid rgba(22, 163, 74, 0.2);
+            "
+            >General B2B Intent</span
+          >
+        </div>
+        <div
+          id="lead-card-reason"
+          style="
+            font-size: 12.5px;
+            color: var(--muted);
+            line-height: 1.55;
+            font-style: italic;
+          "
+        >
+          Reason text...
+        </div>
+      </div>
+
+      <!-- Source Article Extracted From -->
+      <div
+        style="
+          background: var(--surface2);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 14px 18px;
+        "
+      >
+        <div
+          style="
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--muted);
+            margin-bottom: 6px;
+          "
+        >
+          Source Extracted From
+        </div>
+        <div
+          id="lead-card-source-title"
+          style="
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+            line-height: 1.45;
+          "
+        >
+          Article Headline
+        </div>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--muted);
+            flex-wrap: wrap;
+            gap: 8px;
+          "
+        >
+          <div>
+            <span
+              id="lead-card-source-publisher"
+              style="font-weight: 600; color: var(--text)"
+              >Publisher</span
+            >
+            <span id="lead-card-source-date" style="margin-left: 6px"
+              >• Date</span
+            >
+          </div>
+          <a
+            id="lead-card-source-link"
+            href="#"
+            target="_blank"
+            style="
+              color: var(--accent);
+              font-weight: 700;
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 5px;
+              font-size: 12px;
+              padding: 4px 10px;
+              background: rgba(220, 38, 38, 0.05);
+              border-radius: 6px;
+              border: 1px solid rgba(220, 38, 38, 0.15);
+              transition: all 0.2s;
+            "
+          >
+            View Article
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path
+                d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+              />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer Actions: Add to Campaign, Enrich, Close -->
+    <div
+      style="
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid var(--border);
+        padding-top: 20px;
+        gap: 12px;
+      "
+    >
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        style="
+          padding: 9px 20px;
+          font-size: 13px;
+          font-weight: 700;
+          border-radius: 8px;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          color: var(--text);
+        "
+        onclick="
+          document.getElementById('leadDetailModal').style.display = 'none'
+        "
+      >
+        Close
+      </button>
+
+      <div style="display: flex; align-items: center; gap: 10px">
+        <!-- Enrich Button -->
+        <button
+          id="lead-card-btn-enrich"
+          type="button"
+          class="btn btn-secondary btn-sm"
+          style="
+            padding: 9px 18px;
+            font-size: 12.5px;
+            font-weight: 700;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--text);
+          "
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+          >
+            <path
+              d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"
+            />
+          </svg>
+          Enrich
+        </button>
+
+        <!-- Add to Campaign Button -->
+        <button
+          id="lead-card-btn-campaign"
+          type="button"
+          class="btn btn-primary btn-sm"
+          style="
+            padding: 9px 20px;
+            font-size: 12.5px;
+            font-weight: 700;
+            border-radius: 8px;
+            background: #d40000;
+            border-color: #d40000;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+          "
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Add to Campaign
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+{{ grouped_competitors|json_script:"competitors-data" }}
+<script src="{% static 'discovery/js/leads.js' %}?v={% now 'U' %}"></script>
+<script>
+  (function () {
+    // --- Competitor Strategic Moves Timeline Logic ---
+    const competitorsDataEl = document.getElementById("competitors-data");
+    let competitorsData = [];
+    try {
+      competitorsData = competitorsDataEl
+        ? JSON.parse(competitorsDataEl.textContent || "[]")
+        : [];
+    } catch (e) {
+      console.error("Failed to parse competitors data:", e);
+    }
+
+    window.openCompetitorTimeline = function (competitorName) {
+      if (!competitorName) return;
+      const cleanTarget = competitorName.trim().toLowerCase();
+      const comp = competitorsData.find(
+        (c) => (c.name || "").trim().toLowerCase() === cleanTarget,
+      );
+
+      const drawer = document.getElementById("competitorTimelineDrawer");
+      const backdrop = document.getElementById("timelineDrawerBackdrop");
+      const nameEl = document.getElementById("drawer-competitor-name");
+      const movesBadge = document.getElementById("drawer-moves-badge");
+      const container = document.getElementById("drawer-timeline-container");
+
+      if (!drawer || !backdrop || !container) return;
+
+      const displayName = comp ? comp.name : competitorName;
+      const moves = comp && comp.moves ? comp.moves : [];
+      const count = moves.length;
+
+      if (nameEl) nameEl.textContent = displayName;
+      const countText = `${count} Strategic Move${count === 1 ? "" : "s"} Tracked`;
+      const countTextEl = document.getElementById("drawer-moves-count-text");
+      if (countTextEl) {
+        countTextEl.textContent = countText;
+      } else if (movesBadge) {
+        movesBadge.textContent = countText;
+      }
+
+      const typeBadge = document.getElementById("drawer-competitor-type-badge");
+      const compType = (
+        comp && comp.competitor_type ? comp.competitor_type : "direct"
+      ).toLowerCase();
+      if (typeBadge) {
+        if (compType === "indirect") {
+          typeBadge.innerHTML =
+            '<i class="fas fa-random" style="font-size: 9px;"></i> Indirect Alternative';
+          typeBadge.style.background = "rgba(245, 158, 11, 0.1)";
+          typeBadge.style.color = "#d97706";
+          typeBadge.style.border = "1px solid rgba(245, 158, 11, 0.25)";
+        } else {
+          typeBadge.innerHTML =
+            '<i class="fas fa-crosshairs" style="font-size: 9px;"></i> Direct Competitor';
+          typeBadge.style.background = "rgba(220, 38, 38, 0.08)";
+          typeBadge.style.color = "var(--accent, #dc2626)";
+          typeBadge.style.border = "1px solid rgba(220, 38, 38, 0.2)";
+        }
+      }
+
+      if (count === 0) {
+        container.innerHTML = `
+        <div style="padding: 48px 20px; text-align: center; color: var(--muted, #64748b);">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(100, 116, 139, 0.08); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 14px; color: var(--muted, #64748b); font-size: 20px;">
+            <i class="fas fa-satellite-dish"></i>
+          </div>
+          <div style="font-weight: 700; font-size: 14px; color: var(--text, #0f172a); margin-bottom: 6px;">No Strategic Moves Logged Yet</div>
+          <div style="font-size: 12px; max-width: 320px; margin: 0 auto; line-height: 1.5;">Future discovery runs will automatically track new competitive moves for ${escapeLeadHtml(displayName)}.</div>
+        </div>
+      `;
+      } else {
+        let html = `
+        <div style="margin-bottom: 20px; background: #ffffff; border: 1px solid var(--border, #e2e8f0); border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.04); min-width: 0; box-sizing: border-box; width: 100%;">
+          <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(220, 38, 38, 0.1); color: var(--accent, #dc2626); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div style="min-width: 0;">
+              <div style="font-size: 13px; font-weight: 800; color: var(--text, #0f172a);">${count} Strategic Move${count === 1 ? "" : "s"} Tracked</div>
+              <div style="font-size: 11px; color: var(--muted, #64748b);">Aggregated across all news articles & discovery sweeps</div>
+            </div>
+          </div>
+          <span style="font-size: 11px; font-weight: 700; color: #16a34a; background: rgba(22, 163, 74, 0.1); padding: 3px 9px; border-radius: 12px; display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: #16a34a;"></span> Active
+          </span>
+        </div>
+      `;
+        moves.forEach((m, idx) => {
+          const sig = (m.signal || "").toLowerCase();
+          let icon = "fas fa-satellite-dish";
+          let color = "#3b82f6";
+          let bg = "rgba(59, 130, 246, 0.1)";
+          let border = "rgba(59, 130, 246, 0.25)";
+
+          if (
+            sig.includes("fund") ||
+            sig.includes("capital") ||
+            sig.includes("invest") ||
+            sig.includes("ipo") ||
+            sig.includes("debt")
+          ) {
+            icon = "fas fa-coins";
+            color = "#8b5cf6";
+            bg = "rgba(139, 92, 246, 0.1)";
+            border = "rgba(139, 92, 246, 0.25)";
+          } else if (
+            sig.includes("leader") ||
+            sig.includes("hire") ||
+            sig.includes("ceo") ||
+            sig.includes("appoint") ||
+            sig.includes("executive")
+          ) {
+            icon = "fas fa-user-tie";
+            color = "#2563eb";
+            bg = "rgba(37, 99, 235, 0.1)";
+            border = "rgba(37, 99, 235, 0.25)";
+          } else if (
+            sig.includes("launch") ||
+            sig.includes("product") ||
+            sig.includes("feature") ||
+            sig.includes("release") ||
+            sig.includes("version")
+          ) {
+            icon = "fas fa-rocket";
+            color = "#10b981";
+            bg = "rgba(16, 185, 129, 0.1)";
+            border = "rgba(16, 185, 129, 0.25)";
+          } else if (
+            sig.includes("partner") ||
+            sig.includes("alliance") ||
+            sig.includes("joint") ||
+            sig.includes("collab")
+          ) {
+            icon = "fas fa-handshake";
+            color = "#f59e0b";
+            bg = "rgba(245, 158, 11, 0.1)";
+            border = "rgba(245, 158, 11, 0.25)";
+          } else if (
+            sig.includes("acqui") ||
+            sig.includes("merger") ||
+            sig.includes("m&a") ||
+            sig.includes("takeover")
+          ) {
+            icon = "fas fa-building";
+            color = "#ef4444";
+            bg = "rgba(239, 68, 68, 0.1)";
+            border = "rgba(239, 68, 68, 0.25)";
+          } else if (
+            sig.includes("expand") ||
+            sig.includes("market") ||
+            sig.includes("geograph") ||
+            sig.includes("office") ||
+            sig.includes("global")
+          ) {
+            icon = "fas fa-globe-americas";
+            color = "#06b6d4";
+            bg = "rgba(6, 182, 212, 0.1)";
+            border = "rgba(6, 182, 212, 0.25)";
+          } else if (
+            sig.includes("contract") ||
+            sig.includes("deal") ||
+            sig.includes("win") ||
+            sig.includes("customer")
+          ) {
+            icon = "fas fa-file-contract";
+            color = "#059669";
+            bg = "rgba(5, 150, 105, 0.1)";
+            border = "rgba(5, 150, 105, 0.25)";
+          } else if (
+            sig.includes("patent") ||
+            sig.includes("ip") ||
+            sig.includes("certif")
+          ) {
+            icon = "fas fa-certificate";
+            color = "#7c3aed";
+            bg = "rgba(124, 58, 237, 0.1)";
+            border = "rgba(124, 58, 237, 0.25)";
+          } else if (
+            sig.includes("regulat") ||
+            sig.includes("complian") ||
+            sig.includes("approv")
+          ) {
+            icon = "fas fa-shield-alt";
+            color = "#0284c7";
+            bg = "rgba(2, 132, 199, 0.1)";
+            border = "rgba(2, 132, 199, 0.25)";
+          } else if (
+            sig.includes("pivot") ||
+            sig.includes("rebrand") ||
+            sig.includes("restruct")
+          ) {
+            icon = "fas fa-sync-alt";
+            color = "#ea580c";
+            bg = "rgba(234, 88, 12, 0.1)";
+            border = "rgba(234, 88, 12, 0.25)";
+          } else if (
+            sig.includes("pric") ||
+            sig.includes("tier") ||
+            sig.includes("model")
+          ) {
+            icon = "fas fa-tags";
+            color = "#d97706";
+            bg = "rgba(217, 119, 6, 0.1)";
+            border = "rgba(217, 119, 6, 0.25)";
+          } else {
+            icon = "fas fa-bolt";
+            color = "#6366f1";
+            bg = "rgba(99, 102, 241, 0.1)";
+            border = "rgba(99, 102, 241, 0.25)";
+          }
+
+          const isLast = idx === moves.length - 1;
+          const lineHtml = isLast
+            ? ""
+            : `<div style="position: absolute; left: 17px; top: 36px; bottom: -8px; width: 2px; background: var(--border, #e2e8f0);"></div>`;
+
+          html += `
+          <div style="display: flex; gap: 16px; position: relative; padding-bottom: 24px; min-width: 0; width: 100%; box-sizing: border-box;">
+            ${lineHtml}
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: ${bg}; color: ${color}; border: 1px solid ${border}; display: flex; align-items: center; justify-content: center; font-size: 13px; z-index: 2; flex-shrink: 0; box-shadow: 0 0 0 4px #f8fafc;">
+              <i class="${icon}"></i>
+            </div>
+            <div style="flex: 1; min-width: 0; background: #ffffff; border: 1px solid var(--border, #e2e8f0); border-radius: 12px; padding: 15px 16px; box-sizing: border-box; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                <span style="background: ${bg}; color: ${color}; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 12px; border: 1px solid ${border}; display: inline-flex; align-items: center; gap: 4px;">
+                  <span style="width: 5px; height: 5px; border-radius: 50%; background: ${color};"></span>
+                  ${escapeLeadHtml(m.signal || "Competitor Activity")}
+                </span>
+                <span style="font-size: 11.5px; color: var(--muted, #64748b); font-weight: 600;">
+                  <i class="far fa-calendar-alt" style="margin-right: 4px;"></i>${escapeLeadHtml(m.date || "Recent")}
+                </span>
+              </div>
+              <div style="font-size: 12.5px; color: var(--text, #0f172a); line-height: 1.55; margin-bottom: 12px; word-break: break-word;">
+                ${escapeLeadHtml(m.reason || "Competitor activity captured by discovery scraper.")}
+              </div>
+              <div style="background: #f8fafc; border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 9px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; box-sizing: border-box;">
+                <div style="overflow: hidden; min-width: 0; flex: 1;">
+                  <div style="font-size: 10px; color: var(--muted, #64748b); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+                    ${escapeLeadHtml(m.article_source || "Verified Source")}
+                  </div>
+                  <div style="font-size: 12px; color: var(--text, #0f172a); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeLeadHtml(m.article_title || "")}">
+                    ${escapeLeadHtml(m.article_title || "Source Article")}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onclick="openArticleModalFromElement(this)"
+                  data-title="${escapeLeadHtml(m.article_title || "Source Article")}"
+                  data-source="${escapeLeadHtml(m.article_source || "Verified Source")}"
+                  data-url="${escapeLeadHtml(m.article_url || "#")}"
+                  class="btn btn-secondary btn-sm"
+                  style="padding: 4px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;"
+                >
+                  <i class="far fa-eye"></i> View Article
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        });
+        container.innerHTML = html;
+      }
+
+      backdrop.style.display = "block";
+      setTimeout(() => {
+        backdrop.style.opacity = "1";
+        drawer.style.transform = "translateX(0)";
+      }, 10);
+    };
+
+    window.closeCompetitorTimeline = function () {
+      const drawer = document.getElementById("competitorTimelineDrawer");
+      const backdrop = document.getElementById("timelineDrawerBackdrop");
+      if (!drawer || !backdrop) return;
+      drawer.style.transform = "translateX(100%)";
+      backdrop.style.opacity = "0";
+      setTimeout(() => {
+        backdrop.style.display = "none";
+      }, 350);
+    };
+
+    window.filterCompetitorsByType = function (type) {
+      const tabs = {
+        all: document.getElementById("comp-tab-all"),
+        direct: document.getElementById("comp-tab-direct"),
+        indirect: document.getElementById("comp-tab-indirect"),
+      };
+      Object.keys(tabs).forEach((key) => {
+        const btn = tabs[key];
+        if (!btn) return;
+        if (key === type) {
+          btn.style.background = "var(--surface, #fff)";
+          btn.style.color = "var(--text, #0f172a)";
+          btn.style.boxShadow = "0 1px 2px rgba(0,0,0,0.06)";
+        } else {
+          btn.style.background = "transparent";
+          btn.style.color = "var(--muted, #64748b)";
+          btn.style.boxShadow = "none";
+        }
+      });
+
+      const rows = document.querySelectorAll(
+        "#competitors-tbody tr[data-competitor-type]",
+      );
+      let visibleCount = 0;
+      rows.forEach((row) => {
+        const rowType = (
+          row.getAttribute("data-competitor-type") || "direct"
+        ).toLowerCase();
+        if (type === "all" || rowType === type) {
+          row.style.display = "";
+          visibleCount++;
+        } else {
+          row.style.display = "none";
+        }
+      });
+
+      const visibleCountEl = document.getElementById("comp-visible-count");
+      if (visibleCountEl) {
+        visibleCountEl.textContent = visibleCount;
+      }
+    };
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        window.closeCompetitorTimeline();
+      }
+    });
+
+    let activeLeadCard = null;
+
+    function getInitials(name) {
+      if (!name) return "LD";
+      const clean = name.trim();
+      if (!clean) return "LD";
+      const parts = clean.split(/\s+/).filter(Boolean);
+      if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
+    function renderLeadCard(leadData) {
+      activeLeadCard = leadData;
+      const modal = document.getElementById("leadDetailModal");
+      if (!modal) return;
+
+      // Avatar Initials
+      const avatarEl = document.getElementById("lead-card-avatar");
+      if (avatarEl) avatarEl.innerText = getInitials(leadData.name);
+
+      // Name
+      const nameEl = document.getElementById("lead-card-name");
+      if (nameEl) nameEl.innerText = leadData.name || "Lead Details";
+
+      // Intent Score
+      const scoreBadge = document.getElementById("lead-card-score-badge");
+      if (scoreBadge) {
+        const score = leadData.score || "50";
+        scoreBadge.innerText = `${score} Intent Score`;
+      }
+
+      // Designation / Role
+      const desigEl = document.getElementById("lead-card-designation");
+      if (desigEl) {
+        desigEl.innerText =
+          leadData.designation || "Decision Maker / Key Contact";
+      }
+
+      // Account / Company
+      const accountEl = document.getElementById("lead-card-account");
+      if (accountEl) {
+        accountEl.innerText = leadData.account || "—";
+      }
+
+      // Phone
+      const phoneEl = document.getElementById("lead-card-phone");
+      const phoneStatus = document.getElementById("lead-card-phone-status");
+      const rawPhone = (leadData.phone || "").trim();
+      const hasPhone = Boolean(
+        rawPhone &&
+        !["—", "-", "None", "null", "N/A", "n/a"].includes(rawPhone),
+      );
+
+      if (phoneEl) {
+        if (hasPhone) {
+          phoneEl.innerText = rawPhone;
+          phoneEl.setAttribute("href", "tel:" + rawPhone);
+          phoneEl.style.color = "var(--accent)";
+          phoneEl.style.textDecoration = "underline";
+        } else {
+          phoneEl.innerText = "Not Available";
+          phoneEl.removeAttribute("href");
+          phoneEl.style.color = "var(--muted)";
+          phoneEl.style.textDecoration = "none";
+        }
+      }
+
+      if (phoneStatus) {
+        if (hasPhone) {
+          phoneStatus.innerText = "Verified";
+          phoneStatus.style.background = "rgba(22, 163, 74, 0.1)";
+          phoneStatus.style.color = "#16a34a";
+          phoneStatus.style.border = "1px solid rgba(22, 163, 74, 0.25)";
+        } else {
+          phoneStatus.innerText = "Missing";
+          phoneStatus.style.background = "rgba(220, 38, 38, 0.1)";
+          phoneStatus.style.color = "#ef4444";
+          phoneStatus.style.border = "1px solid rgba(220, 38, 38, 0.25)";
+        }
+      }
+
+      // Email
+      const emailEl = document.getElementById("lead-card-email");
+      const emailStatus = document.getElementById("lead-card-email-status");
+      const rawEmail = (leadData.email || "").trim();
+      const hasEmail = Boolean(
+        rawEmail &&
+        !["—", "-", "None", "null", "N/A", "n/a"].includes(rawEmail) &&
+        rawEmail.includes("@"),
+      );
+
+      if (emailEl) {
+        if (hasEmail) {
+          emailEl.innerText = rawEmail;
+          emailEl.setAttribute("href", "mailto:" + rawEmail);
+          emailEl.style.color = "var(--accent)";
+          emailEl.style.textDecoration = "underline";
+        } else {
+          emailEl.innerText = "Not Available";
+          emailEl.removeAttribute("href");
+          emailEl.style.color = "var(--muted)";
+          emailEl.style.textDecoration = "none";
+        }
+      }
+
+      if (emailStatus) {
+        if (hasEmail) {
+          emailStatus.innerText = "Verified";
+          emailStatus.style.background = "rgba(22, 163, 74, 0.1)";
+          emailStatus.style.color = "#16a34a";
+          emailStatus.style.border = "1px solid rgba(22, 163, 74, 0.25)";
+        } else {
+          emailStatus.innerText = "Missing";
+          emailStatus.style.background = "rgba(220, 38, 38, 0.1)";
+          emailStatus.style.color = "#ef4444";
+          emailStatus.style.border = "1px solid rgba(220, 38, 38, 0.25)";
+        }
+      }
+
+      // LinkedIn
+      const linkedinEl = document.getElementById("lead-card-linkedin");
+      const linkedinText = document.getElementById("lead-card-linkedin-text");
+      const linkedinIcon = document.getElementById("lead-card-linkedin-icon");
+      const linkedinStatus = document.getElementById(
+        "lead-card-linkedin-status",
+      );
+      const rawLinkedin = (leadData.linkedin || "").trim();
+      const hasLinkedin = Boolean(
+        rawLinkedin &&
+        !["—", "-", "None", "null", "N/A", "n/a"].includes(rawLinkedin) &&
+        (rawLinkedin.startsWith("http://") ||
+          rawLinkedin.startsWith("https://")),
+      );
+
+      if (linkedinEl) {
+        if (hasLinkedin) {
+          if (linkedinText) {
+            try {
+              const parsedUrl = new URL(rawLinkedin);
+              const pathSlug = parsedUrl.pathname
+                .replace(/^\/in\//i, "")
+                .replace(/\/+$/, "");
+              linkedinText.innerText = pathSlug
+                ? `linkedin.com/in/${pathSlug}`
+                : "View LinkedIn Profile";
+            } catch (_) {
+              linkedinText.innerText = "View LinkedIn Profile";
+            }
+          }
+          linkedinEl.setAttribute("href", rawLinkedin);
+          linkedinEl.style.color = "#0A66C2";
+          linkedinEl.style.textDecoration = "underline";
+          if (linkedinIcon) linkedinIcon.style.display = "inline-block";
+        } else {
+          if (linkedinText) linkedinText.innerText = "Not Available";
+          linkedinEl.removeAttribute("href");
+          linkedinEl.style.color = "var(--muted)";
+          linkedinEl.style.textDecoration = "none";
+          if (linkedinIcon) linkedinIcon.style.display = "none";
+        }
+      }
+
+      if (linkedinStatus) {
+        if (hasLinkedin) {
+          linkedinStatus.innerText = "Verified";
+          linkedinStatus.style.background = "rgba(10, 102, 194, 0.1)";
+          linkedinStatus.style.color = "#0A66C2";
+          linkedinStatus.style.border = "1px solid rgba(10, 102, 194, 0.25)";
+        } else {
+          linkedinStatus.innerText = "Missing";
+          linkedinStatus.style.background = "rgba(220, 38, 38, 0.1)";
+          linkedinStatus.style.color = "#ef4444";
+          linkedinStatus.style.border = "1px solid rgba(220, 38, 38, 0.25)";
+        }
+      }
+
+      // Intent Signal & Rationale
+      const signalEl = document.getElementById("lead-card-signal");
+      if (signalEl) {
+        signalEl.innerText = leadData.signal || "General B2B Intent";
+      }
+
+      const reasonEl = document.getElementById("lead-card-reason");
+      if (reasonEl) {
+        reasonEl.innerText = leadData.reason
+          ? "“" + leadData.reason + "”"
+          : "Extracted automatically by AI Prospect Pulse engine based on ICP buying signals.";
+      }
+
+      // Source Article Information
+      const titleEl = document.getElementById("lead-card-source-title");
+      if (titleEl) {
+        titleEl.innerText =
+          leadData.sourceTitle || "Intelligence Source Article";
+      }
+
+      const pubEl = document.getElementById("lead-card-source-publisher");
+      if (pubEl) {
+        pubEl.innerText = leadData.sourcePublisher || "Verified Source";
+      }
+
+      const dateEl = document.getElementById("lead-card-source-date");
+      if (dateEl) {
+        dateEl.innerText = leadData.sourceDate
+          ? "• " + leadData.sourceDate
+          : "";
+      }
+
+      const linkEl = document.getElementById("lead-card-source-link");
+      if (linkEl) {
+        if (leadData.sourceUrl) {
+          linkEl.setAttribute("href", leadData.sourceUrl);
+          linkEl.style.display = "inline-flex";
+        } else {
+          linkEl.removeAttribute("href");
+          linkEl.style.display = "none";
+        }
+      }
+
+      modal.style.display = "flex";
+    }
+
+    // Globally accessible trigger handler
+    window.openLeadCardFromElement = function (el) {
+      if (!el) return;
+      const leadData = {
+        id: el.getAttribute("data-id"),
+        name: el.getAttribute("data-name") || "Lead Details",
+        designation: el.getAttribute("data-designation") || "",
+        account: el.getAttribute("data-account") || "",
+        email: (el.getAttribute("data-email") || "").trim(),
+        phone: (el.getAttribute("data-phone") || "").trim(),
+        linkedin: (el.getAttribute("data-linkedin") || "").trim(),
+        score: el.getAttribute("data-score") || "50",
+        signal: el.getAttribute("data-signal") || "General B2B Intent",
+
+        reason: el.getAttribute("data-reason") || "",
+        sourceTitle: el.getAttribute("data-source-title") || "",
+        sourceUrl: el.getAttribute("data-source-url") || "",
+        sourcePublisher: el.getAttribute("data-source-publisher") || "",
+        sourceDate: el.getAttribute("data-source-date") || "",
+        assignedCampaign: el.getAttribute("data-assigned-campaign") || "",
+      };
+      renderLeadCard(leadData);
+    };
+
+    // Wire action buttons inside leadDetailModal
+    document.addEventListener("DOMContentLoaded", function () {
+      const btnCampaign = document.getElementById("lead-card-btn-campaign");
+      if (btnCampaign) {
+        btnCampaign.addEventListener("click", function (e) {
+          e.preventDefault();
+          if (!activeLeadCard) return;
+          const modal = document.getElementById("leadDetailModal");
+          if (modal) modal.style.display = "none";
+          if (typeof window.openCampaignModal === "function") {
+            window.openCampaignModal([activeLeadCard.id], activeLeadCard);
+          }
+        });
+      }
+
+      const btnEnrich = document.getElementById("lead-card-btn-enrich");
+      if (btnEnrich) {
+        btnEnrich.addEventListener("click", function (e) {
+          e.preventDefault();
+          if (!activeLeadCard) return;
+          if (typeof window.performEnrichment === "function") {
+            window.performEnrichment([activeLeadCard.id], this);
+          }
+        });
+      }
+
+      // Dismiss modal on backdrop click
+      window.addEventListener("click", function (e) {
+        const leadModal = document.getElementById("leadDetailModal");
+        if (leadModal && e.target === leadModal) {
+          leadModal.style.display = "none";
+        }
+        const deleteModal = document.getElementById("deleteConfirmModal");
+        if (deleteModal && e.target === deleteModal) {
+          deleteModal.style.display = "none";
+        }
+        const moveModal = document.getElementById("moveConfirmModal");
+        if (moveModal && e.target === moveModal) {
+          moveModal.style.display = "none";
+        }
+        const articleModal = document.getElementById("articleModal");
+        if (articleModal && e.target === articleModal) {
+          articleModal.style.display = "none";
+        }
+        const campaignModal = document.getElementById("campaignModal");
+        if (campaignModal && e.target === campaignModal) {
+          campaignModal.style.display = "none";
+        }
+      });
+
+      // Dismiss on Escape
+      window.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          const leadModal = document.getElementById("leadDetailModal");
+          if (leadModal && leadModal.style.display === "flex") {
+            leadModal.style.display = "none";
+          }
+          const deleteModal = document.getElementById("deleteConfirmModal");
+          if (deleteModal && deleteModal.style.display === "flex") {
+            deleteModal.style.display = "none";
+          }
+          const moveModal = document.getElementById("moveConfirmModal");
+          if (moveModal && moveModal.style.display === "flex") {
+            moveModal.style.display = "none";
+          }
+          const articleModal = document.getElementById("articleModal");
+          if (articleModal && articleModal.style.display === "flex") {
+            articleModal.style.display = "none";
+          }
+          const campaignModal = document.getElementById("campaignModal");
+          if (campaignModal && campaignModal.style.display === "flex") {
+            campaignModal.style.display = "none";
+          }
+        }
+      });
+    });
+
+    // Helper notification banner
+    function showNotificationBanner(message, isSuccess) {
+      const alertBanner = document.getElementById("quota-alert-banner");
+      const alertMessage = document.getElementById("quota-alert-message");
+      if (!alertBanner || !alertMessage) return;
+
+      alertMessage.innerText = message;
+      if (isSuccess) {
+        alertBanner.style.borderColor = "rgba(34, 197, 94, 0.45)";
+        alertBanner.style.color = "#4ade80";
+      } else {
+        alertBanner.style.borderColor = "rgba(220, 38, 38, 0.45)";
+        alertBanner.style.color = "#f87171";
+      }
+      alertBanner.style.display = "flex";
+      setTimeout(() => {
+        alertBanner.style.display = "none";
+      }, 5000);
+    }
+
+    // Universal Unicode Decoder: Converts \uXXXX escape sequences into real characters
+    function decodeUnicodeEscapes(str) {
+      if (!str) return "";
+      return str.replace(/\\u([0-9a-fA-F]{4})/g, function (_, hex) {
+        return String.fromCharCode(parseInt(hex, 16));
+      });
+    }
+
+    // Open Article Modal from Eye Icon (Companies / Competitors)
+    window.openArticleModalFromElement = function (el) {
+      if (!el) return;
+      const title = decodeUnicodeEscapes(
+        el.getAttribute("data-title") || "Source Article",
+      );
+      const source = decodeUnicodeEscapes(
+        el.getAttribute("data-source") || "Verified Source",
+      );
+      const url = el.getAttribute("data-url") || "#";
+
+      const titleEl = document.getElementById("article-modal-title");
+      const sourceEl = document.getElementById("article-modal-source");
+      const linkEl = document.getElementById("article-modal-link");
+      const modal = document.getElementById("articleModal");
+
+      if (titleEl) titleEl.innerText = title;
+      if (sourceEl) sourceEl.innerText = source;
+      if (linkEl) {
+        if (url && url !== "#") {
+          linkEl.setAttribute("href", url);
+          linkEl.style.display = "inline-flex";
+        } else {
+          linkEl.removeAttribute("href");
+          linkEl.style.display = "none";
+        }
+      }
+      if (modal) modal.style.display = "flex";
+    };
+
+    // Confirm and Delete Company (cascading to associated leads)
+    window.confirmDeleteCompany = function (companyId, companyName) {
+      const modal = document.getElementById("deleteConfirmModal");
+      const title = document.getElementById("delete-modal-title");
+      const message = document.getElementById("delete-modal-message");
+      const warning = document.getElementById("delete-modal-warning");
+      const confirmBtn = document.getElementById("delete-modal-confirm-btn");
+
+      if (!modal) return;
+
+      title.innerText = "Delete Company";
+      message.innerHTML = `Are you sure you want to delete <strong style="color: var(--text);">${companyName}</strong>?`;
+      if (warning) warning.style.display = "flex";
+
+      confirmBtn.onclick = function () {
+        confirmBtn.disabled = true;
+        confirmBtn.innerText = "Deleting...";
+
+        const csrfTokenEl = document.querySelector(
+          "[name=csrfmiddlewaretoken]",
+        );
+        const csrfToken = csrfTokenEl ? csrfTokenEl.value : "";
+
+        fetch(`/discovery/companies/${companyId}/delete/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = "Delete";
+            modal.style.display = "none";
+
+            if (data.status === "success") {
+              // Remove company row
+              const compRow = document.getElementById(
+                `company-row-${companyId}`,
+              );
+              if (compRow) {
+                compRow.style.opacity = "0";
+                compRow.style.transform = "translateX(20px)";
+                setTimeout(() => compRow.remove(), 300);
+              }
+
+              // Remove associated lead rows
+              if (data.deleted_lead_ids && data.deleted_lead_ids.length > 0) {
+                data.deleted_lead_ids.forEach((lid) => {
+                  const leadRow = document.getElementById(`lead-row-${lid}`);
+                  if (leadRow) {
+                    leadRow.style.opacity = "0";
+                    leadRow.style.transform = "translateX(20px)";
+                    setTimeout(() => leadRow.remove(), 300);
+                  }
+                });
+              }
+
+              // Update company counters
+              if (typeof data.remaining_companies !== "undefined") {
+                const kpiComp = document.getElementById("kpi-count-companies");
+                if (kpiComp) kpiComp.innerText = data.remaining_companies;
+                const tabComp = document.getElementById("tab-badge-companies");
+                if (tabComp) tabComp.innerText = data.remaining_companies;
+              }
+
+              // Update lead counters
+              if (typeof data.remaining_leads !== "undefined") {
+                const heroLead = document.getElementById("hero-count-leads");
+                if (heroLead) heroLead.innerText = data.remaining_leads;
+                const kpiLead = document.getElementById("kpi-count-leads");
+                if (kpiLead) kpiLead.innerText = data.remaining_leads;
+                const tabLead = document.getElementById("tab-badge-leads");
+                if (tabLead) tabLead.innerText = data.remaining_leads;
+              }
+
+              showNotificationBanner(
+                data.message || "Company deleted successfully.",
+                true,
+              );
+            } else {
+              showNotificationBanner(
+                data.message || "Failed to delete company.",
+                false,
+              );
+            }
+          })
+          .catch((err) => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = "Delete";
+            modal.style.display = "none";
+            showNotificationBanner(
+              "Network error while deleting company.",
+              false,
+            );
+          });
+      };
+
+      modal.style.display = "flex";
+    };
+
+    // Confirm and Delete Competitor
+    window.confirmDeleteCompetitor = function (competitorId, competitorName) {
+      const modal = document.getElementById("deleteConfirmModal");
+      const title = document.getElementById("delete-modal-title");
+      const message = document.getElementById("delete-modal-message");
+      const warning = document.getElementById("delete-modal-warning");
+      const confirmBtn = document.getElementById("delete-modal-confirm-btn");
+
+      if (!modal) return;
+
+      title.innerText = "Delete Competitor";
+      message.innerHTML = `Are you sure you want to remove competitor <strong style="color: var(--text);">${competitorName}</strong>?`;
+      if (warning) warning.style.display = "none";
+
+      confirmBtn.onclick = function () {
+        confirmBtn.disabled = true;
+        confirmBtn.innerText = "Deleting...";
+
+        const csrfTokenEl = document.querySelector(
+          "[name=csrfmiddlewaretoken]",
+        );
+        const csrfToken = csrfTokenEl ? csrfTokenEl.value : "";
+
+        fetch(`/discovery/competitors/${competitorId}/delete/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = "Delete";
+            modal.style.display = "none";
+
+            if (data.status === "success") {
+              // Remove competitor row
+              const compRow = document.getElementById(
+                `competitor-row-${competitorId}`,
+              );
+              if (compRow) {
+                compRow.style.opacity = "0";
+                compRow.style.transform = "translateX(20px)";
+                setTimeout(() => compRow.remove(), 300);
+              }
+
+              // Update competitor counters
+              if (typeof data.remaining_competitors !== "undefined") {
+                const kpiComp = document.getElementById(
+                  "kpi-count-competitors",
+                );
+                if (kpiComp) kpiComp.innerText = data.remaining_competitors;
+                const tabComp = document.getElementById(
+                  "tab-badge-competitors",
+                );
+                if (tabComp) tabComp.innerText = data.remaining_competitors;
+              }
+
+              showNotificationBanner(
+                data.message || "Competitor removed successfully.",
+                true,
+              );
+            } else {
+              showNotificationBanner(
+                data.message || "Failed to delete competitor.",
+                false,
+              );
+            }
+          })
+          .catch((err) => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = "Delete";
+            modal.style.display = "none";
+            showNotificationBanner(
+              "Network error while deleting competitor.",
+              false,
+            );
+          });
+      };
+
+      modal.style.display = "flex";
+    };
+
+    // Helper to escape HTML characters in dynamic lead generation
+    function escapeLeadHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Confirm and Move Company to Competitors
+    window.confirmMoveCompanyToCompetitor = function (companyId, companyName) {
+      const modal = document.getElementById("moveConfirmModal");
+      const iconContainer = document.getElementById(
+        "move-modal-icon-container",
+      );
+      const icon = document.getElementById("move-modal-icon");
+      const title = document.getElementById("move-modal-title");
+      const message = document.getElementById("move-modal-message");
+      const infoBox = document.getElementById("move-modal-info");
+      const infoIcon = document.getElementById("move-modal-info-icon");
+      const infoText = document.getElementById("move-modal-info-text");
+      const confirmBtn = document.getElementById("move-modal-confirm-btn");
+
+      if (!modal) return;
+
+      title.innerText = "Move to Competitors";
+      if (iconContainer) {
+        iconContainer.style.background = "rgba(245, 158, 11, 0.1)";
+        iconContainer.style.color = "#f59e0b";
+      }
+      if (icon) icon.className = "fas fa-shield-alt";
+
+      message.innerHTML = `Are you sure you want to move <strong style="color: var(--text);">${companyName}</strong> from Target Companies to Competitors?`;
+
+      if (infoBox) {
+        infoBox.style.display = "flex";
+        infoBox.style.background = "rgba(245, 158, 11, 0.08)";
+        infoBox.style.borderColor = "rgba(245, 158, 11, 0.25)";
+        infoBox.style.color = "#d97706";
+      }
+      if (infoIcon) infoIcon.className = "fas fa-exclamation-triangle";
+      if (infoText)
+        infoText.innerText =
+          "All contact leads associated with this company will be automatically removed from this pulse.";
+
+      confirmBtn.innerText = "Move to Competitors";
+      confirmBtn.style.background = "#f59e0b";
+      confirmBtn.style.borderColor = "#f59e0b";
+
+      confirmBtn.onclick = function () {
+        confirmBtn.disabled = true;
+        confirmBtn.innerText = "Moving...";
+
+        const csrfTokenEl = document.querySelector(
+          "[name=csrfmiddlewaretoken]",
+        );
+        const csrfToken = csrfTokenEl ? csrfTokenEl.value : "";
+
+        fetch(`/discovery/companies/${companyId}/move-to-competitor/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = "Move to Competitors";
+            modal.style.display = "none";
+
+            if (data.status === "success") {
+              // Remove company row
+              const compRow = document.getElementById(
+                `company-row-${companyId}`,
+              );
+              if (compRow) {
+                compRow.style.opacity = "0";
+                compRow.style.transform = "translateX(20px)";
+                setTimeout(() => compRow.remove(), 300);
+              }
+
+              // Remove associated lead rows
+              if (data.deleted_lead_ids && data.deleted_lead_ids.length > 0) {
+                data.deleted_lead_ids.forEach((lid) => {
+                  const leadRow = document.getElementById(`lead-row-${lid}`);
+                  if (leadRow) {
+                    leadRow.style.opacity = "0";
+                    leadRow.style.transform = "translateX(20px)";
+                    setTimeout(() => leadRow.remove(), 300);
+                  }
+                });
+              }
+
+              // Update company counters
+              if (typeof data.remaining_companies !== "undefined") {
+                const kpiComp = document.getElementById("kpi-count-companies");
+                if (kpiComp) kpiComp.innerText = data.remaining_companies;
+                const tabComp = document.getElementById("tab-badge-companies");
+                if (tabComp) tabComp.innerText = data.remaining_companies;
+              }
+
+              // Update competitor counters
+              if (typeof data.remaining_competitors !== "undefined") {
+                const kpiComp = document.getElementById(
+                  "kpi-count-competitors",
+                );
+                if (kpiComp) kpiComp.innerText = data.remaining_competitors;
+                const tabComp = document.getElementById(
+                  "tab-badge-competitors",
+                );
+                if (tabComp) tabComp.innerText = data.remaining_competitors;
+              }
+
+              // Update lead counters
+              if (typeof data.remaining_leads !== "undefined") {
+                const heroLead = document.getElementById("hero-count-leads");
+                if (heroLead) heroLead.innerText = data.remaining_leads;
+                const kpiLead = document.getElementById("kpi-count-leads");
+                if (kpiLead) kpiLead.innerText = data.remaining_leads;
+                const tabLead = document.getElementById("tab-badge-leads");
+                if (tabLead) tabLead.innerText = data.remaining_leads;
+              }
+
+              showNotificationBanner(
+                data.message || "Company moved to competitors successfully.",
+                true,
+              );
+            } else {
+              showNotificationBanner(
+                data.message || "Failed to move company.",
+                false,
+              );
+            }
+          })
+          .catch((err) => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = "Move to Competitors";
+            modal.style.display = "none";
+            showNotificationBanner(
+              "Network error while moving company.",
+              false,
+            );
+          });
+      };
+
+      modal.style.display = "flex";
+    };
+
+    // Confirm and Move Competitor to Target Companies
+    window.confirmMoveCompetitorToCompany = function (
+      competitorId,
+      competitorName,
+    ) {
+      const modal = document.getElementById("moveConfirmModal");
+      const iconContainer = document.getElementById(
+        "move-modal-icon-container",
+      );
+      const icon = document.getElementById("move-modal-icon");
+      const title = document.getElementById("move-modal-title");
+      const message = document.getElementById("move-modal-message");
+      const infoBox = document.getElementById("move-modal-info");
+      const infoIcon = document.getElementById("move-modal-info-icon");
+      const infoText = document.getElementById("move-modal-info-text");
+      const confirmBtn = document.getElementById("move-modal-confirm-btn");
+
+      if (!modal) return;
+
+      title.innerText = "Move to Target Companies";
+      if (iconContainer) {
+        iconContainer.style.background = "rgba(34, 197, 94, 0.1)";
+        iconContainer.style.color = "#22c55e";
+      }
+      if (icon) icon.className = "fas fa-building";
+
+      message.innerHTML = `Are you sure you want to promote <strong style="color: var(--text);">${competitorName}</strong> to Target Companies?`;
+
+      if (infoBox) {
+        infoBox.style.display = "flex";
+        infoBox.style.background = "rgba(34, 197, 94, 0.08)";
+        infoBox.style.borderColor = "rgba(34, 197, 94, 0.25)";
+        infoBox.style.color = "#15803d";
+      }
+      if (infoIcon) infoIcon.className = "fas fa-magic";
+      if (infoText)
+        infoText.innerText =
+          "Decision-maker and executive leads for this company will be automatically extracted and added to your Leads list.";
+
+      confirmBtn.innerText = "Move to Companies";
+      confirmBtn.style.background = "#22c55e";
+      confirmBtn.style.borderColor = "#22c55e";
+
+      confirmBtn.onclick = function () {
+        confirmBtn.disabled = true;
+        confirmBtn.innerText = "Moving & Extracting Leads...";
+
+        const csrfTokenEl = document.querySelector(
+          "[name=csrfmiddlewaretoken]",
+        );
+        const csrfToken = csrfTokenEl ? csrfTokenEl.value : "";
+
+        fetch(`/discovery/competitors/${competitorId}/move-to-company/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = "Move to Companies";
+            modal.style.display = "none";
+
+            if (data.status === "success") {
+              // Remove competitor row
+              const compRow = document.getElementById(
+                `competitor-row-${competitorId}`,
+              );
+              if (compRow) {
+                compRow.style.opacity = "0";
+                compRow.style.transform = "translateX(20px)";
+                setTimeout(() => compRow.remove(), 300);
+              }
+
+              // Update company counters
+              if (typeof data.remaining_companies !== "undefined") {
+                const kpiComp = document.getElementById("kpi-count-companies");
+                if (kpiComp) kpiComp.innerText = data.remaining_companies;
+                const tabComp = document.getElementById("tab-badge-companies");
+                if (tabComp) tabComp.innerText = data.remaining_companies;
+              }
+
+              // Update competitor counters
+              if (typeof data.remaining_competitors !== "undefined") {
+                const kpiComp = document.getElementById(
+                  "kpi-count-competitors",
+                );
+                if (kpiComp) kpiComp.innerText = data.remaining_competitors;
+                const tabComp = document.getElementById(
+                  "tab-badge-competitors",
+                );
+                if (tabComp) tabComp.innerText = data.remaining_competitors;
+              }
+
+              // Update lead counters
+              if (typeof data.remaining_leads !== "undefined") {
+                const heroLead = document.getElementById("hero-count-leads");
+                if (heroLead) heroLead.innerText = data.remaining_leads;
+                const kpiLead = document.getElementById("kpi-count-leads");
+                if (kpiLead) kpiLead.innerText = data.remaining_leads;
+                const tabLead = document.getElementById("tab-badge-leads");
+                if (tabLead) tabLead.innerText = data.remaining_leads;
+              }
+
+              // If newly extracted leads are returned, prepend them to the leads table
+              if (data.extracted_leads && data.extracted_leads.length > 0) {
+                const leadsTbody =
+                  document.getElementById("leads-tbody") ||
+                  document.querySelector("#panel-leads tbody");
+                if (leadsTbody) {
+                  // If there's an empty placeholder row, remove it
+                  const emptyRow = leadsTbody.querySelector("td[colspan]");
+                  if (emptyRow && emptyRow.parentElement) {
+                    emptyRow.parentElement.remove();
+                  }
+
+                  data.extracted_leads.forEach((lead) => {
+                    const tr = document.createElement("tr");
+                    tr.id = `lead-row-${lead.id}`;
+                    tr.style.borderBottom = "1px solid var(--border)";
+                    tr.style.verticalAlign = "middle";
+
+                    const cleanName = escapeLeadHtml(lead.name || "Lead");
+                    const cleanDesig = escapeLeadHtml(lead.designation || "");
+                    const cleanOrg = escapeLeadHtml(
+                      lead.organization_name || "",
+                    );
+                    const cleanEmail = escapeLeadHtml(lead.email || "");
+                    const cleanPhone = escapeLeadHtml(lead.phone || "");
+                    const cleanSignal = escapeLeadHtml(
+                      lead.buying_signal || "General B2B Intent",
+                    );
+                    const cleanReason = escapeLeadHtml(lead.reason || "");
+                    const cleanSourceTitle = escapeLeadHtml(
+                      lead.source_article_title || "",
+                    );
+                    const cleanSourceUrl = escapeLeadHtml(
+                      lead.source_article_url || "",
+                    );
+                    const cleanSourcePub = escapeLeadHtml(
+                      lead.source_article_source || "",
+                    );
+                    const cleanLinkedin = escapeLeadHtml(
+                      lead.linkedin_url || "",
+                    );
+                    const cleanArticleDate = escapeLeadHtml(
+                      lead.article_date || "Recent",
+                    );
+
+                    tr.className = "lead-row-item";
+                    tr.innerHTML = `
+                    <td style="padding: 14px 16px">
+                      <input
+                        type="checkbox"
+                        class="lead-checkbox"
+                        data-id="${lead.id}"
+                        data-name="${cleanName}"
+                        data-email="${cleanEmail}"
+                        data-phone="${cleanPhone}"
+                      />
+                    </td>
+                    <td style="padding: 14px 16px">
+                      <a
+                        href="javascript:void(0)"
+                        class="btn-lead-card-trigger"
+                        onclick="openLeadCardFromElement(this); return false;"
+                        data-id="${lead.id}"
+                        data-name="${cleanName}"
+                        data-designation="${cleanDesig}"
+                        data-account="${cleanOrg}"
+                        data-email="${cleanEmail}"
+                        data-phone="${cleanPhone}"
+                        data-linkedin="${cleanLinkedin}"
+                        data-score="${lead.score || 75}"
+                        data-signal="${cleanSignal}"
+                        data-reason="${cleanReason}"
+                        data-source-title="${cleanSourceTitle}"
+                        data-source-url="${cleanSourceUrl}"
+                        data-source-publisher="${cleanSourcePub}"
+                        data-source-date="${cleanArticleDate}"
+                        data-assigned-campaign=""
+                        style="text-decoration: none; color: inherit; display: inline-block; cursor: pointer;"
+                        title="Click to view full lead details"
+                      >
+                        <div style="font-weight: 700; color: var(--accent); font-size: 13.5px; display: inline-flex; align-items: center; gap: 6px;">
+                          <span>${cleanName}</span>
+                        </div>
+                        ${cleanDesig ? `<div style="font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 2px;">${cleanDesig}</div>` : ""}
+                      </a>
+                    </td>
+                    <td style="padding: 14px 16px; white-space: nowrap; font-size: 12px; color: var(--muted);">
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--muted); flex-shrink: 0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        <span>${cleanArticleDate}</span>
+                      </div>
+                    </td>
+                    <td style="padding: 14px 16px; font-weight: 600; color: var(--text)">
+                      ${cleanOrg}
+                    </td>
+                    <td style="padding: 14px 16px; color: var(--text)">
+                      ${cleanEmail || "—"}
+                    </td>
+                    <td style="padding: 14px 16px; color: var(--text)">
+                      ${cleanPhone || "—"}
+                    </td>
+                    <td style="padding: 14px 16px; text-align: center">
+                      <span style="font-size: 11px; color: var(--muted); font-style: italic;">Unassigned</span>
+                    </td>
+                    <td style="padding: 14px 16px; text-align: center; font-weight: 800; color: var(--accent)">
+                      ${lead.score || 75}%
+                    </td>
+                    <td style="padding: 14px 16px">
+                      <span style="font-size: 11px; color: var(--muted);">Extracted Contact</span>
+                    </td>
+                    <td style="padding: 14px 16px; text-align: right">
+                      <div style="display: inline-flex; align-items: center; gap: 10px; justify-content: flex-end;">
+                        <button
+                          type="button"
+                          class="btn-lead-card-trigger"
+                          title="View Lead Information Card"
+                          onclick="openLeadCardFromElement(this); return false;"
+                          data-id="${lead.id}"
+                          data-name="${cleanName}"
+                          data-designation="${cleanDesig}"
+                          data-account="${cleanOrg}"
+                          data-email="${cleanEmail}"
+                          data-phone="${cleanPhone}"
+                          data-linkedin="${cleanLinkedin}"
+                          data-score="${lead.score || 75}"
+                          data-signal="${cleanSignal}"
+                          data-reason="${cleanReason}"
+                          data-source-title="${cleanSourceTitle}"
+                          data-source-url="${cleanSourceUrl}"
+                          data-source-publisher="${cleanSourcePub}"
+                          data-source-date=""
+                          data-assigned-campaign=""
+                          style="background: transparent; border: none; padding: 6px; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: color 0.2s ease;"
+                          onmouseover="this.style.color='var(--accent)'"
+                          onmouseout="this.style.color='var(--muted)'"
+                        >
+
+                          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                          </svg>
+                        </button>
+                        <button
+                          class="btn-enrich btn-row-enrich"
+                          title="Enrich Lead"
+                          data-id="${lead.id}"
+                          style="background: transparent; border: none; padding: 6px; color: var(--accent); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/>
+                            <circle cx="19" cy="5" r="1" />
+                          </svg>
+                        </button>
+                        <button
+                          class="btn btn-primary btn-sm btn-row-crm"
+                          data-id="${lead.id}"
+                          style="font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: 700;"
+                        >
+                          Move to CRM
+                        </button>
+                      </div>
+                    </td>
+                  `;
+                    leadsTbody.prepend(tr);
+                  });
+                  if (window.refreshLeadsPagination) {
+                    window.refreshLeadsPagination();
+                  }
+                }
+              }
+
+              showNotificationBanner(
+                data.message || "Competitor moved to target companies.",
+                true,
+              );
+            } else {
+              showNotificationBanner(
+                data.message || "Failed to move competitor.",
+                false,
+              );
+            }
+          })
+          .catch((err) => {
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = "Move to Companies";
+            modal.style.display = "none";
+            showNotificationBanner(
+              "Network error while moving competitor.",
+              false,
+            );
+          });
+      };
+
+      modal.style.display = "flex";
+    };
+  })();
+</script>
 {% endblock %}

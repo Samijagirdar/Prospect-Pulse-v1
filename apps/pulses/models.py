@@ -13,15 +13,22 @@ class Pulse(models.Model):
     FREQUENCY_CHOICES = [
         ('daily', 'Daily'),
         ('weekly', 'Weekly'),
-        ('monthly', 'Monthly'),
-        ('custom', 'Custom')
+        ('monthly', 'Monthly')
+    ]
+    LOOKBACK_CHOICES = [
+        ('30d', 'Last 1 Month (30 Days)'),
+        ('60d', 'Last 2 Months (60 Days)'),
+        ('90d', 'Last 3 Months (90 Days)'),
+        ('180d', 'Last 6 Months (180 Days)'),
+        ('365d', 'Last 1 Year (365 Days)'),
     ]
 
     uid = models.CharField(max_length=50, unique=True, db_index=True)
     organisation_id = models.IntegerField()
     name = models.CharField(max_length=255)
     frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default='daily')
-    custom_days = models.IntegerField(null=True, blank=True)
+    historical_lookback = models.CharField(max_length=10, choices=LOOKBACK_CHOICES, default='60d')
+    target_geography = models.TextField(null=True, blank=True)
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -36,6 +43,19 @@ class Pulse(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        if self.end_date and self.end_date < timezone.now().date():
+            return True
+        return False
+
+    @property
+    def target_geography_list(self):
+        if not self.target_geography:
+            return []
+        return [g.strip() for g in self.target_geography.split(',') if g.strip()]
 
     @property
     def competitors_list(self):
@@ -78,6 +98,30 @@ class Pulse(models.Model):
     @property
     def ai_confidence_reason(self):
         return self._get_profile_field('ai_confidence_reason', '')
+
+    @property
+    def total_prompt_tokens(self):
+        from django.db.models import Sum
+        res = self.discovery_runs.aggregate(s=Sum('prompt_tokens'))['s']
+        return res if res else 0
+
+    @property
+    def total_completion_tokens(self):
+        from django.db.models import Sum
+        res = self.discovery_runs.aggregate(s=Sum('completion_tokens'))['s']
+        return res if res else 0
+
+    @property
+    def total_tokens_consumed(self):
+        from django.db.models import Sum
+        res = self.discovery_runs.aggregate(s=Sum('total_tokens'))['s']
+        return res if res else (self.total_prompt_tokens + self.total_completion_tokens)
+
+    @property
+    def estimated_total_cost(self):
+        p_tokens = self.total_prompt_tokens
+        c_tokens = self.total_completion_tokens
+        return (p_tokens * 0.000000075) + (c_tokens * 0.00000030)
 
     @property
     def personas_list(self):

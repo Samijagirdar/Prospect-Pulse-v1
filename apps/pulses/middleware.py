@@ -27,8 +27,11 @@ class GlobalExceptionHandlingMiddleware:
         is_gemini_error = False
         error_msg = ""
 
-        # 1. Identify specific Gemini API/quota limits
-        if any(keyword in msg for keyword in ["RESOURCE_EXHAUSTED", "quota", "spending cap", "429"]):
+        # 1. Identify specific Gemini API/quota/authorization limits
+        if any(keyword in msg for keyword in ["PERMISSION_DENIED", "CONSUMER_SUSPENDED", "403", "401", "UNAUTHENTICATED", "ACCESS_TOKEN_TYPE_UNSUPPORTED"]):
+            is_gemini_error = True
+            error_msg = "API Error please contact your administrator"
+        elif any(keyword in msg for keyword in ["RESOURCE_EXHAUSTED", "quota", "spending cap", "429"]):
             is_gemini_error = True
             error_msg = "You have exceeded your monthly quota"
         elif "Empty response text from LLM" in msg:
@@ -39,7 +42,12 @@ class GlobalExceptionHandlingMiddleware:
             error_msg = "Failed to run discovery: AI returned an invalid response format."
         elif "Failed to extract GTM insights" in msg:
             is_gemini_error = True
-            error_msg = f"Failed to extract GTM insights: {msg}"
+            if any(keyword in msg for keyword in ["PERMISSION_DENIED", "CONSUMER_SUSPENDED", "403", "401", "UNAUTHENTICATED"]):
+                error_msg = "API Error please contact your administrator"
+            else:
+                import re
+                clean_text = re.sub(r'api_key[=:][A-Za-z0-9_\-]+', 'api_key=***HIDDEN***', msg)
+                error_msg = f"Failed to extract GTM insights: {clean_text}"
 
         # 2. Always log the error details on the backend (Console / Logs)
         user_str = getattr(request, 'user', 'AnonymousUser')
@@ -71,10 +79,11 @@ class GlobalExceptionHandlingMiddleware:
         )
 
         if is_json_request:
+            status_code = 403 if error_msg == "API Error please contact your administrator" else 500
             return JsonResponse({
                 'success': False,
                 'error': error_msg
-            }, status=500)
+            }, status=status_code)
 
         # 5. Handle standard HTML requests (Redirect with message)
         messages.error(request, error_msg)

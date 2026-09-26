@@ -2,13 +2,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from django.db import connection
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from django.db.models import Q
 
-from .helpers.auth import get_user_org
-from .models import Pulse, CompanyProfile, Persona, TargetCompetitor, Keyword, BuyingSignal
+from common.auth import get_user_org
+from .models import Pulse
 from .serializers import ProspectPulseSerializer
 
 
@@ -26,7 +23,6 @@ class PulseListCreateAPIView(APIView):
                     'name': p.name,
                     'frequency': p.frequency,
                     'frequency_display': p.get_frequency_display(),
-                    'custom_days': p.custom_days,
                     'start_date': str(p.start_date),
                     'end_date': str(p.end_date) if p.end_date else None,
                     'is_active': bool(p.is_active),
@@ -81,7 +77,6 @@ class PulseDetailAPIView(APIView):
             'name': pulse.name,
             'frequency': pulse.frequency,
             'frequency_display': pulse.get_frequency_display(),
-            'custom_days': pulse.custom_days,
             'start_date': str(pulse.start_date),
             'end_date': str(pulse.end_date) if pulse.end_date else None,
             'input_type': pulse.input_type,
@@ -130,11 +125,4 @@ class PulseToggleAPIView(APIView):
             pulse.save()
             return Response({'success': True, 'is_active': pulse.is_active})
         return Response({'success': False, 'error': 'Pulse not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-class DocumentListAPIView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        return Response({'documents': []})
 

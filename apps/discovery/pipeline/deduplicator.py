@@ -2,7 +2,6 @@ import os
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
 import re
-import math
 import difflib
 import importlib
 from datetime import datetime, timedelta
@@ -35,7 +34,6 @@ except Exception:
     nlp = None
     SPACY_AVAILABLE = False
 
-from .relevance_engine import RelevanceEngine
 from . import llm_relevance_judge
 from apps.discovery.models import Article
 
@@ -101,7 +99,14 @@ class Deduplicator:
     def get_recent_articles(self, pulse, exclude_id=None):
         """Query unique articles published in the last time_window_days for this pulse"""
         cutoff_date = timezone.now() - timedelta(days=self.time_window_days)
-        qs = Article.objects.filter(pulse=pulse, is_duplicate=False, scraped_at__gte=cutoff_date)
+        fields = [
+            'id', 'title', 'url', 'description', 'embedding',
+            'publication_date', 'scraped_at', 'is_relevant',
+            'relevance_score', 'buying_signal', 'relevance_tier', 'relevance_reason'
+        ]
+        qs = Article.objects.filter(
+            pulse=pulse, is_duplicate=False, scraped_at__gte=cutoff_date
+        ).only(*fields)
         if exclude_id:
             qs = qs.exclude(id=exclude_id)
         

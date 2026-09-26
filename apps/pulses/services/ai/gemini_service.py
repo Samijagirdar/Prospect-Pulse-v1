@@ -179,7 +179,7 @@ def clean_and_parse_json(text):
     except json.JSONDecodeError as e:
         raise ValueError(f"Unable to parse valid JSON from LLM: {str(e)}\nRaw Response: {text[:200]}")
 
-def call_gemini_api(raw_text):
+def call_gemini_api(raw_text, company_name=None, website_url=None, target_geography=None):
     if 'test' in sys.argv:
         return None
         
@@ -193,18 +193,35 @@ def call_gemini_api(raw_text):
         
         client = genai.Client(api_key=api_key)
         
+        company_meta = []
+        if company_name and company_name.strip():
+            company_meta.append(f"- Company/Product Name: {company_name.strip()}")
+        if website_url and website_url.strip():
+            company_meta.append(f"- Website URL: {website_url.strip()}")
+        if target_geography and target_geography.strip():
+            company_meta.append(f"- Target Geography: {target_geography.strip()}")
+        meta_block = "\n".join(company_meta) if company_meta else "- Company: Extracted from provided source text"
+
         prompt = f"""
-        You are an elite GTM Sales Intelligence AI with access to Google Search grounding. Analyze the following text and extract precise business parameters for the target company/business.
-        If parameters like employee count, revenue, target focus, or competitors are not explicitly stated in the source text, use Google Search to research the company (or the company that owns the website URL) online and find the exact or nearly exact values. Do not guess or output random/default values.
+        You are an elite GTM Sales Intelligence AI with access to Google Search grounding.
+        Analyze the company profile, offering, and website text below to extract precise GTM parameters, Ideal Customer Profile (ICP), target accounts focus, and competitive intelligence.
+
+        Company Context:
+        {meta_block}
+
+        If parameters like employee count, revenue, target focus, or competitors are not explicitly stated in the source text, use Google Search to research the company ({company_name or 'the company associated with this domain'}) online to determine accurate, high-fidelity values. Do not guess or output generic/irrelevant values.
 
         STRICT EXTRACTION INSTRUCTIONS:
-        1. "employee_count": MUST be specific numeric figures or headcount ranges (e.g., "250 - 500", "1,200", "80 - 200"). NEVER return qualitative labels like "Small", "Medium", "Large", "Not specified", "Unknown", or "N/A".
-        2. "revenue": MUST be specific numerical dollar ranges (e.g., "$15M - $50M", "$100M+", "$5M - $20M"). NEVER return vague text or "Not specified".
-        3. "company_size": MUST be a specific headcount range with numbers (e.g., "100 - 500 Employees").
-        4. "competitors": MUST list 3-5 real, legitimate, major direct market competitors that pose a real strategic threat to this company.
-        5. "target_personas": MUST return a balanced mix of executive technology decision-makers AND revenue/sales/marketing leaders. Examples: "Chief Revenue Officer (CRO)", "VP of Sales", "Chief Technology Officer (CTO)", "Head of Sales Operations", "VP of Marketing", "Chief Commercial Officer".
+        1. "industry": Must be the true core industry of what the company's product or service actually does (e.g. "AI Sales Automation & Revenue Operations", "Cybersecurity & MSSP", "Cloud Data Infrastructure", etc.).
+        2. "target_account_focus_chips": 4-5 specific capability or solution chips that this company actually sells or solves (e.g. for sales platforms: "Autonomous Sales Operations (ASOC)", "AI BDR & Outreach", "Pipeline Acceleration", "Speed-to-Lead Automation").
+        3. "employee_count": MUST be specific numeric figures or headcount ranges (e.g., "250 - 500", "1,200", "80 - 200"). NEVER return qualitative labels like "Small", "Medium", "Large", "Not specified", "Unknown", or "N/A".
+        4. "revenue": MUST be specific numerical dollar ranges (e.g., "$15M - $50M", "$100M+", "$5M - $20M"). NEVER return vague text or "Not specified".
+        5. "company_size": MUST be a specific headcount range with numbers (e.g., "100 - 500 Employees").
+        6. "competitors": MUST list 3-5 real, legitimate, direct market competitors that compete against this company's core product/service in the same space.
+        7. "target_personas": MUST return a balanced mix of executive buyers and decision-makers who would purchase this company's product (e.g. "Chief Revenue Officer (CRO)", "VP of Sales", "Chief Technology Officer (CTO)", "Head of Sales Operations", "VP of Marketing").
 
         Return ONLY a JSON object matching this exact schema:
+
         {{
           "company_summary": {{
             "industry": "Specific Industry Sector",
@@ -245,21 +262,27 @@ def call_gemini_api(raw_text):
         {raw_text}
         """
         
-        model_name = os.environ.get('GEMINI_MODEL') or 'gemini-3.5-flash'
+        primary_model = os.environ.get('GEMINI_ICP_MODEL') or os.environ.get('GEMINI_MODEL') or 'gemini-3.8-flash'
+        fallback_model = os.environ.get('GEMINI_BACKUP_MODEL') or 'gemini-3.7-flash'
+
+        use_search_tool = bool(len(raw_text.strip()) < 300)
+        tools_config = [{"google_search": {}}] if use_search_tool else None
+
         try:
             response = client.models.generate_content(
-                model=model_name,
+                model=primary_model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    tools=[{"google_search": {}}],
+                    tools=tools_config,
                     max_output_tokens=4096
                 ),
             )
             if not response.text:
                 raise ValueError("Empty response text from LLM")
         except Exception as first_err:
-            print(f"Gemini GTM enrichment: First attempt with search grounding failed or returned empty: {first_err}. Retrying without search grounding...")
+            print(f"Gemini GTM enrichment: Primary model {primary_model} failed ({first_err}). Retrying with {fallback_model}...")
+
             
             # Define fallback prompt without Google Search grounding instructions
             fallback_prompt = prompt.replace("with access to Google Search grounding", "analyzing GTM inputs")
@@ -269,7 +292,7 @@ def call_gemini_api(raw_text):
             )
             
             response = client.models.generate_content(
-                model=model_name,
+                model=fallback_model,
                 contents=fallback_prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -277,7 +300,7 @@ def call_gemini_api(raw_text):
                 ),
             )
             if not response.text:
-                raise ValueError("Empty response text from LLM on retry without search grounding")
+                raise ValueError("Empty response text from LLM on retry")
         
         # Extract token usage and print to console
         prompt_tokens = 0
@@ -380,17 +403,31 @@ def enrich_missing_gtm_params(name, description, industries, value_props, existi
         }}
         """
         
-        model_name = os.environ.get('GEMINI_MODEL') or 'gemini-3.5-flash'
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                max_output_tokens=4096
-            ),
-        )
-        if not response.text:
-            raise ValueError("Empty response text from LLM")
+        primary_model = os.environ.get('GEMINI_ICP_MODEL') or os.environ.get('GEMINI_MODEL') or 'gemini-3.8-flash'
+        fallback_model = os.environ.get('GEMINI_BACKUP_MODEL') or 'gemini-3.7-flash'
+        try:
+            response = client.models.generate_content(
+                model=primary_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    max_output_tokens=4096
+                ),
+            )
+            if not response.text:
+                raise ValueError("Empty response text from LLM")
+        except Exception as first_err:
+            print(f"Gemini GTM enrichment: Primary model {primary_model} failed ({first_err}). Retrying with {fallback_model}...")
+            response = client.models.generate_content(
+                model=fallback_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    max_output_tokens=4096
+                ),
+            )
+            if not response.text:
+                raise ValueError("Empty response text from LLM on retry")
             
         # Extract token usage and print to console
         prompt_tokens = 0

@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 logger = logging.getLogger('django.request')
 from django.shortcuts import render, redirect
@@ -47,7 +48,6 @@ def pulse_list(request):
         return render(request, 'pulses/pulse_list.html', {'pulses': pulses, 'debug': settings.DEBUG})
 
 
-@csrf_exempt
 def pulse_create(request):
     if is_json_request(request):
         from .. import api_views
@@ -71,18 +71,19 @@ def pulse_create(request):
                 try:
                     with transaction.atomic():
                         pulse_id = pulse_service.create_pulse_config(
-                            org_id=org.id,
+                            org_id=org.id if org else None,
                             name=data['name'],
                             frequency=data['frequency'],
-                            custom_days=data['custom_days'],
                             start_date=data['start_date'],
-                            end_date=data['end_date'],
+                            end_date=data.get('end_date'),
                             input_type=data['input_type'],
                             pdf_file=pdf_path,
-                            url=data['url'],
-                            text_content=data['text_content'],
-                            from_document_id=int(data['from_document']) if data['from_document'] else None,
-                            competitors=data['competitors']
+                            url=data.get('url'),
+                            text_content=data.get('text_content'),
+                            from_document_id=int(data['from_document']) if data.get('from_document') else None,
+                            competitors=data.get('competitors', ''),
+                            historical_lookback=data.get('historical_lookback', '60d'),
+                            target_geography=data.get('target_geography')
                         )
                     pulse = Pulse.objects.get(id=pulse_id)
                     messages.success(request, f"Pulse '{data['name']}' created successfully.")
@@ -94,8 +95,12 @@ def pulse_create(request):
                         messages.error(request, "Failed to run GTM enrichment: AI returned an invalid response format. Please try again.")
                     elif any(keyword in error_msg for keyword in ["RESOURCE_EXHAUSTED", "quota", "spending cap", "429"]):
                         messages.error(request, "Failed to run GTM enrichment: Gemini API quota exceeded. Please verify your billing/credits.")
+                    elif any(keyword in error_msg for keyword in ["PERMISSION_DENIED", "CONSUMER_SUSPENDED", "403", "UNAUTHENTICATED", "401", "api_key"]):
+                        messages.error(request, "API Error please contact your administrator")
                     else:
-                        messages.error(request, f"Error creating pulse: {error_msg}")
+                        import re
+                        clean_msg = re.sub(r'api_key[=:][A-Za-z0-9_\-]+', 'api_key=***HIDDEN***', error_msg)
+                        messages.error(request, f"Error creating pulse: {clean_msg}")
         else:
             form = ProspectPulseForm(organisation=org)
             
@@ -106,7 +111,6 @@ def pulse_create(request):
         return render(request, 'pulses/pulse_form.html', context)
 
 
-@csrf_exempt
 def pulse_edit(request, pk):
     if is_json_request(request):
         from .. import api_views
@@ -132,19 +136,22 @@ def pulse_edit(request, pk):
                     pdf_path = default_storage.save(f"prospect_pulse/pdfs/{file.name}", file)
                     
                 try:
+                    # In edit mode, ONLY name, end_date, competitors, and target_geography can be modified.
+                    # All other fields strictly retain existing pulse settings.
                     pulse_service.update_pulse_config(
                         pulse_id=pulse.id,
                         name=data['name'],
-                        frequency=data['frequency'],
-                        custom_days=data['custom_days'],
-                        start_date=data['start_date'],
-                        end_date=data['end_date'],
-                        input_type=data['input_type'],
-                        pdf_file=pdf_path,
-                        url=data['url'],
-                        text_content=data['text_content'],
-                        from_document_id=int(data['from_document']) if data['from_document'] else None,
-                        competitors=data['competitors']
+                        frequency=pulse.frequency,
+                        start_date=pulse.start_date,
+                        end_date=data.get('end_date'),
+                        input_type=pulse.input_type,
+                        pdf_file=pulse.pdf_file,
+                        url=pulse.url,
+                        text_content=pulse.text_content,
+                        from_document_id=pulse.from_document_id,
+                        competitors=data.get('competitors', ''),
+                        historical_lookback=pulse.historical_lookback,
+                        target_geography=data.get('target_geography')
                     )
                     
                     messages.success(request, f"Pulse '{data['name']}' updated successfully.")
@@ -158,8 +165,12 @@ def pulse_edit(request, pk):
                         messages.error(request, "Failed to run GTM enrichment: AI returned an invalid response format. Please try again.")
                     elif any(keyword in error_msg for keyword in ["RESOURCE_EXHAUSTED", "quota", "spending cap", "429"]):
                         messages.error(request, "Failed to run GTM enrichment: Gemini API quota exceeded. Please verify your billing/credits.")
+                    elif any(keyword in error_msg for keyword in ["PERMISSION_DENIED", "CONSUMER_SUSPENDED", "403", "UNAUTHENTICATED", "401", "api_key"]):
+                        messages.error(request, "API Error please contact your administrator")
                     else:
-                        messages.error(request, f"Error updating pulse: {error_msg}")
+                        import re
+                        clean_msg = re.sub(r'api_key[=:][A-Za-z0-9_\-]+', 'api_key=***HIDDEN***', error_msg)
+                        messages.error(request, f"Error updating pulse: {clean_msg}")
         else:
             initial_data = {
                 'competitors': ", ".join(pulse.competitors_list),
@@ -203,7 +214,7 @@ def pulse_detail(request, pk):
         # Check if there is an active running discovery run
         latest_run = pulse.discovery_runs.order_by('-started_at').first()
         active_run_id = None
-        if latest_run and latest_run.status not in ['completed', 'failed']:
+        if latest_run and latest_run.status not in ['completed', 'failed', 'stopped']:
             active_run_id = latest_run.id
             
         context = {
@@ -221,7 +232,6 @@ def pulse_detail(request, pk):
         return render(request, 'pulses/pulse_detail.html', context)
 
 
-@csrf_exempt
 def pulse_delete(request, pk):
     if request.method not in ['POST', 'DELETE']:
         from django.http import HttpResponseNotAllowed
@@ -244,7 +254,6 @@ def pulse_delete(request, pk):
     return redirect('prospect_pulse:prospect_pulse_list')
 
 
-@csrf_exempt
 @require_POST
 def pulse_toggle(request, pk):
     if is_json_request(request):
@@ -273,6 +282,47 @@ def pulse_discover(request, pk):
     from apps.discovery.models import DiscoveryRun
     from django.http import JsonResponse
     
+    # Check if pulse end date has passed
+    if pulse.is_expired:
+        end_date_str = pulse.end_date.strftime('%d/%m/%Y') if pulse.end_date else ''
+        edit_url = f"/pulses/{pulse.uid}/edit/"
+        return JsonResponse({
+            'success': False,
+            'is_expired': True,
+            'end_date': end_date_str,
+            'edit_url': edit_url,
+            'error': f"The end date for this pulse ({end_date_str}) has passed. Please edit your pulse and extend the end date to run discovery.",
+            'message': f"The end date for this pulse ({end_date_str}) has passed. Please edit your pulse and extend the end date to run discovery."
+        }, status=400)
+
+    # Check if a discovery run is already actively running for this pulse
+    active_run = pulse.discovery_runs.exclude(status__in=['completed', 'failed', 'stopped']).order_by('-started_at').first()
+
+    if active_run:
+        return JsonResponse({
+            'success': False,
+            'run_id': active_run.id,
+            'message': 'A discovery scan is already actively executing for this campaign. Please wait for it to complete.'
+        }, status=409)
+    
+    # Check for optional lookback override in request body or query params
+    lookback_days = None
+    try:
+        if request.body:
+            import json
+            b_data = json.loads(request.body.decode('utf-8'))
+            if b_data.get('lookback_days'):
+                lookback_days = int(b_data.get('lookback_days'))
+            elif b_data.get('force_lookback'):
+                lookback_days = int(b_data.get('force_lookback'))
+    except Exception:
+        pass
+    if not lookback_days and request.GET.get('lookback_days'):
+        try:
+            lookback_days = int(request.GET.get('lookback_days'))
+        except Exception:
+            pass
+
     # Create the run record in the main request thread
     run = DiscoveryRun.objects.create(
         pulse=pulse,
@@ -280,8 +330,8 @@ def pulse_discover(request, pk):
         started_at=timezone.now()
     )
     
-    # Trigger asynchronously via Celery
-    run_pulse_discovery_task.delay(pulse.id, run.id)
+    # Trigger asynchronously via Celery (with optional lookback override)
+    run_pulse_discovery_task.delay(pulse.id, run.id, timeframe_days_override=lookback_days)
     
     return JsonResponse({
         'success': True,
@@ -290,12 +340,13 @@ def pulse_discover(request, pk):
     })
 
 
-@csrf_exempt
 @require_POST
 def pulse_manage_item(request, pk):
     """Add or remove competitors, target focus chips, or personas for a pulse."""
     try:
-        pulse = get_pulse_by_pk_or_uid(pk)
+        ensure_authenticated_dev(request)
+        org = get_user_org(request)
+        pulse = get_pulse_by_pk_or_uid(pk, org.id)
         if not pulse:
             return JsonResponse({'success': False, 'error': 'Pulse not found'}, status=404)
 
@@ -309,11 +360,14 @@ def pulse_manage_item(request, pk):
             
         if item_type == 'competitor':
             if action == 'add':
-                TargetCompetitor.objects.get_or_create(pulse=pulse, competitor_name=value)
+                if not TargetCompetitor.objects.filter(pulse=pulse, competitor_name__iexact=value).exists():
+                    TargetCompetitor.objects.create(pulse=pulse, competitor_name=value)
             elif action == 'remove':
-                TargetCompetitor.objects.filter(pulse=pulse, competitor_name=value).delete()
+                TargetCompetitor.objects.filter(pulse=pulse, competitor_name__iexact=value).delete()
         elif item_type == 'persona':
             if action == 'add':
+                if pulse.personas_rel.count() >= 8:
+                    return JsonResponse({'success': False, 'error': 'You cannot add more than 8 personas.'}, status=400)
                 Persona.objects.create(pulse=pulse, role=value, type="Target Role")
             elif action == 'remove':
                 Persona.objects.filter(pulse=pulse, role=value).delete()
@@ -322,11 +376,73 @@ def pulse_manage_item(request, pk):
             current_focus = profile.target_account_focus or ""
             items = [x.strip() for x in current_focus.split(',') if x.strip()]
             if action == 'add':
+                if len(items) >= 8:
+                    return JsonResponse({'success': False, 'error': 'You cannot add more than 8 target focus areas.'}, status=400)
                 if value not in items:
                     items.append(value)
             elif action == 'remove':
                 items = [x for x in items if x.lower() != value.lower()]
             profile.target_account_focus = ", ".join(items)
+            profile.save()
+        elif item_type == 'geography':
+            current_geos = [x.strip() for x in (pulse.target_geography or '').split(',') if x.strip()]
+            if action == 'add':
+                if value not in current_geos:
+                    current_geos.append(value)
+            elif action == 'remove':
+                current_geos = [x for x in current_geos if x.lower() != value.lower()]
+            pulse.target_geography = ", ".join(current_geos) if current_geos else None
+            pulse.save(update_fields=['target_geography', 'updated_at'])
+        elif item_type == 'keyword':
+            if action == 'add':
+                if pulse.keywords_rel.count() >= 15:
+                    return JsonResponse({'success': False, 'error': 'You cannot add more than 15 keywords.'}, status=400)
+                category = (data.get('category') or '').strip()
+                if not category:
+                    first_cat = next(iter(pulse.categorized_keywords.keys()), 'Primary Discovery')
+                    category = first_cat
+                Keyword.objects.get_or_create(pulse=pulse, keyword=value, category=category)
+            elif action == 'remove':
+                Keyword.objects.filter(pulse=pulse, keyword=value).delete()
+        elif item_type == 'buying_signal':
+            if action == 'add':
+                if pulse.buying_signals_rel.count() >= 15:
+                    return JsonResponse({'success': False, 'error': 'You cannot add more than 15 buying signals.'}, status=400)
+                category = (data.get('category') or '').strip()
+                if not category:
+                    first_cat = next(iter(pulse.categorized_buying_signals.keys()), 'Organizational')
+                    category = first_cat
+                BuyingSignal.objects.get_or_create(pulse=pulse, signal_name=value, category=category)
+            elif action == 'remove':
+                BuyingSignal.objects.filter(pulse=pulse, signal_name=value).delete()
+        elif item_type == 'icp_metric':
+            field = data.get('field')
+            profile, _ = CompanyProfile.objects.get_or_create(pulse=pulse)
+            
+            # Backend validation: max must be strictly greater than min
+            if field == 'revenue_range':
+                matches = re.findall(r'(\d+(?:\.\d+)?)\s*([KkMmBb])?', str(value))
+                if len(matches) >= 2:
+                    unit_map = {'K': 1e3, 'M': 1e6, 'B': 1e9}
+                    try:
+                        min_dollars = float(matches[0][0]) * unit_map.get(matches[0][1].upper(), 1e6)
+                        max_dollars = float(matches[1][0]) * unit_map.get(matches[1][1].upper(), 1e6)
+                        if max_dollars <= min_dollars:
+                            return JsonResponse({'success': False, 'error': 'Maximum revenue must be strictly greater than minimum revenue.'}, status=400)
+                    except (ValueError, TypeError):
+                        pass
+                profile.revenue_range = value
+            elif field in ('company_size', 'employee_count'):
+                numbers = [int(n) for n in re.findall(r'\d+', str(value).replace(',', ''))]
+                if len(numbers) >= 2 and numbers[1] <= numbers[0]:
+                    label = 'Company size' if field == 'company_size' else 'Employee count'
+                    return JsonResponse({'success': False, 'error': f'Maximum {label.lower()} must be strictly greater than minimum {label.lower()}.'}, status=400)
+                if field == 'company_size':
+                    profile.company_size = value
+                else:
+                    profile.employee_count = value
+            else:
+                return JsonResponse({'success': False, 'error': 'Invalid metric field'}, status=400)
             profile.save()
         else:
             return JsonResponse({'success': False, 'error': 'Invalid item type'}, status=400)

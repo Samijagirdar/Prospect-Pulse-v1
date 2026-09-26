@@ -1,9 +1,11 @@
 # Django/SQLite Database
 db.sqlite3
 *.sqlite3
-celerybeat-schedule
+celerybeat-schedule*
 celerybeat.pid
 *.log
+dump.rdb
+*.rdb
 
 # Python bytecode & environments
 __pycache__/
@@ -32,3 +34,16 @@ Thumbs.db
 .agents/
 sanitized_stage_dump.sql
 GEMINI.md
+
+# Office & presentation documents
+*.pptx
+*.ppt
+
+# Uploads & Collected Assets
+media/
+staticfiles/
+
+# Cloud Deployment & Secret Handover Docs (Do not commit to git)
+CLOUD_DEPLOYMENT_GUIDE*
+*.pdf
+*.docx

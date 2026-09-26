@@ -296,25 +296,35 @@ def classify_article(title, description, query_focus, query_keyword, source, pul
     # Fetch pulse-scoped buying signal definitions
     buying_signals = pulse.buying_signals_rel.all()
     if buying_signals.exists():
-        actionable_text = "\n".join([f"- {sig.signal_name} (Category: {sig.category})" for sig in buying_signals])
+        actionable_signals = [f"- {sig.signal_name} (Category: {sig.category})" for sig in buying_signals]
     else:
-        # Fallback default definitions if none configured on the pulse
-        actionable_text = """
-- Technology Adoption or Migration: Deploying new software, cloud infrastructure, security frameworks.
-- Leadership Changes: C-suite hires, hiring SDRs, new VP appointments.
-- Business Milestones: Raising Series A/B funding, expansion into new markets, launching new products.
-"""
+        actionable_signals = [
+            "- Technology Adoption or Migration: Deploying new software, cloud infrastructure, or security frameworks.",
+            "- Leadership Changes: C-suite hires, key executive appointments, or team expansions.",
+            "- Business Milestones: Raising funding, expansion into new markets, or launching new offerings."
+        ]
+
+    # Always ensure competitive intelligence is recognized as actionable
+    actionable_signals.append("- Competitive Intelligence & Market Moves: Direct competitor product launches, strategic partnerships, funding rounds, acquisitions, or commercial expansions by specific named competitor vendors in this space.")
+    actionable_text = "\n".join(actionable_signals)
 
     # Generic noise definitions
     noise_text = """
-- Socio-Political & Public Sector Policies: Geopolitical news, government mandates without commercial B2B purchasing intent.
-- Thought Leadership / General Blog Post: Tutorials, opinions, threats briefs without specific targeted company intent.
-- Career & Tutorial Guides: Jobs listings, tutorials, educational advice.
-- Macro-Economic Updates: General stock market or economy updates.
+- Market Research Reports & Industry Overviews: Broad multi-year market projections, CAGR forecasts, syndicated industry research reports, and generic survey roundups without a specific company commercial deployment or product launch.
+- Stock Market & Financial Rating Reports: Stock price fluctuations, equity analyst price target changes (e.g. JPMorgan/Morgan Stanley ratings), or earnings call previews without commercial product milestones.
+- Socio-Political & Public Sector Policies: Geopolitical news, government treaties, and broad public sector policy discussions without specific enterprise software purchasing.
+- Thought Leadership / General Blog Post: Tutorials, opinion pieces, generic threat advisories without concrete commercial company intent or competitive developments.
+- Career & Tutorial Guides: Job listings, generic how-to articles, educational coursework.
 """
 
+    target_geography = (getattr(pulse, 'target_geography', None) or "").strip()
+    geo_line = f"- Target Geography: {target_geography} (Prioritize signals relevant to this region)" if target_geography else "- Target Geography: Global (no regional restriction)"
+
+    competitors_list = ", ".join(pulse.competitors_list) if hasattr(pulse, 'competitors_list') and pulse.competitors_list else ""
+    comp_line = f"- Monitored Competitors in this Space: {competitors_list}" if competitors_list else ""
+
     prompt = f"""
-You are an expert B2B relevance classification engine. Your task is to judge whether a scraped news article represents a real buying signal/intent for sales representatives or represents irrelevant noise/thought leadership.
+You are an expert sales and market intelligence relevance classification engine. Your task is to judge whether a scraped news article represents actionable commercial intent, target account expansion, or competitive market movements versus irrelevant noise or non-commercial content.
 
 **ARTICLE DETAILS**:
 - Title: {title}
@@ -322,11 +332,13 @@ You are an expert B2B relevance classification engine. Your task is to judge whe
 - Search query keyword context: {query_keyword}
 - Intended focus area: {query_focus}
 - Publisher/Source: {source}
+{geo_line}
+{comp_line}
 
 **CLASSIFICATION CATEGORIES**:
 Below are the valid categories. You MUST match the article against these categories:
 
-### Actionable B2B Buying Signals:
+### Actionable Intelligence & Commercial Intent Signals:
 {actionable_text}
 
 ### Filtered Noise Categories:
@@ -334,7 +346,7 @@ Below are the valid categories. You MUST match the article against these categor
 
 **INSTRUCTIONS**:
 1. Classify the article into either "actionable" or "noise" based on the definitions above.
-2. If it is "actionable", match it to the single most relevant "buying_signal" name from the list. If it is "noise", set "buying_signal" to null.
+2. If it is "actionable", match it to the single most relevant signal name from the list. If it is "noise", set "buying_signal" to null.
 3. Assign a "relevance_score" (integer between 0 and 100) indicating confidence and relevance quality.
 4. Provide a clear, one-sentence "reason" for your choice. Avoid double quotes or newline characters inside the reason sentence.
 5. Return ONLY a valid, single JSON object with NO markdown formatting, NO backticks, and NO trailing text outside the JSON object.
@@ -349,24 +361,27 @@ Structure:
 
     try:
         client = _get_client()
-        model_name = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+        primary_model = os.getenv("GEMINI_RELEVANCE_MODEL", "gemini-3.8-flash")
+        fallback_model = os.getenv("GEMINI_BACKUP_MODEL", os.getenv("GEMINI_MODEL", "gemini-3.7-flash"))
+
         
         try:
             response = client.models.generate_content(
-                model=model_name,
+                model=primary_model,
                 contents=prompt,
                 config=genai_types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    max_output_tokens=4096
+                    max_output_tokens=2048
                 )
             )
         except Exception as model_err:
+            print(f"Relevance Judge: Primary model {primary_model} failed ({model_err}). Retrying with {fallback_model}...")
             response = client.models.generate_content(
-                model="gemini-3.6-flash",
+                model=fallback_model,
                 contents=prompt,
                 config=genai_types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    max_output_tokens=4096
+                    max_output_tokens=2048
                 )
             )
 

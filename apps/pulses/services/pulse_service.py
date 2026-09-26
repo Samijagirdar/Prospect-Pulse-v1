@@ -2,7 +2,7 @@ import uuid
 from ..models import Pulse, CompanyProfile, TargetCompetitor
 from .ai import enrichment_service
 
-def create_pulse_config(org_id, name, frequency, custom_days, start_date, end_date, input_type, pdf_file, url, text_content, from_document_id, competitors):
+def create_pulse_config(org_id, name, frequency, start_date, end_date, input_type, pdf_file, url, text_content, from_document_id, competitors, historical_lookback='60d', target_geography=None):
     # Generate secure unique identifier
     uid = str(uuid.uuid4().hex[:12])
     
@@ -11,7 +11,8 @@ def create_pulse_config(org_id, name, frequency, custom_days, start_date, end_da
         uid=uid,
         name=name,
         frequency=frequency,
-        custom_days=custom_days,
+        historical_lookback=historical_lookback,
+        target_geography=target_geography,
         start_date=start_date,
         end_date=end_date,
         input_type=input_type,
@@ -36,11 +37,12 @@ def create_pulse_config(org_id, name, frequency, custom_days, start_date, end_da
     return pulse.id
 
 
-def update_pulse_config(pulse_id, name, frequency, custom_days, start_date, end_date, input_type, pdf_file, url, text_content, from_document_id, competitors):
+def update_pulse_config(pulse_id, name, frequency, start_date, end_date, input_type, pdf_file, url, text_content, from_document_id, competitors, historical_lookback='60d', target_geography=None):
     Pulse.objects.filter(id=pulse_id).update(
         name=name,
         frequency=frequency,
-        custom_days=custom_days,
+        historical_lookback=historical_lookback,
+        target_geography=target_geography,
         start_date=start_date,
         end_date=end_date,
         input_type=input_type,

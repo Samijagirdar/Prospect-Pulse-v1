@@ -1,5 +1,4 @@
-{% extends "dashboard/base.html" %} {% load static %} {% block title %}Prospect
-Pulses{% endblock %} {% block topbar_title %}Prospect Pulses{% endblock %} {%
+{% extends "dashboard/base.html" %} {% load static %} {% block topbar_title %}Prospect Pulses{% endblock %} {%
 block topbar_sub %}Track and monitor your prospect engagement pulses{% endblock
 %} {% block content %}
 <div class="ll-hero">
@@ -70,7 +69,7 @@ block topbar_sub %}Track and monitor your prospect engagement pulses{% endblock
             {{ pulse.end_date|date:"M d, Y"|default:"—" }}
           </td>
           <td>
-            {% if pulse.is_active %}
+            {% if pulse.is_active and not pulse.is_expired %}
             <span class="status-badge success">Active</span>
             {% else %}
             <span
@@ -80,6 +79,7 @@ block topbar_sub %}Track and monitor your prospect engagement pulses{% endblock
                 color: var(--muted);
                 border: 1px solid var(--border);
               "
+              {% if pulse.is_expired %}title="Inactive: End date has passed. Edit pulse to extend."{% endif %}
               >Inactive</span
             >
             {% endif %}

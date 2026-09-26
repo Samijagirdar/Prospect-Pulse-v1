@@ -13,6 +13,4 @@ urlpatterns = [
     path('<str:pk>/toggle/', views.pulse_toggle, name='prospect_pulse_toggle'),
     path('<str:pk>/discover/', views.pulse_discover, name='prospect_pulse_discover'),
     path('<str:pk>/manage-item/', views.pulse_manage_item, name='pulse_manage_item'),
-    path('documents/', views.document_list, name='document_list'),
-    path('documents/<int:doc_id>/extract/', views.extract_profile, name='extract_profile'),
 ]

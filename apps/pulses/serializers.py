@@ -10,12 +10,33 @@ class ProspectPulseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pulse
         fields = [
-            'id', 'uid', 'name', 'frequency', 'frequency_display', 'custom_days',
+            'id', 'uid', 'name', 'frequency', 'frequency_display',
             'start_date', 'end_date', 'is_active', 'input_type', 'input_type_display',
             'pdf_file', 'url', 'text_content', 'from_document_id', 'created_at',
             'last_processed_at', 'competitors'
         ]
         read_only_fields = ['id', 'uid', 'created_at', 'last_processed_at']
+
+    def validate(self, attrs):
+        frequency = attrs.get('frequency', 'daily')
+        start_date = attrs.get('start_date')
+        end_date = attrs.get('end_date')
+
+        if start_date:
+            if frequency == 'weekly':
+                if not end_date:
+                    raise serializers.ValidationError({'end_date': 'An end date is required for weekly pulses (minimum 7 days).'})
+                if (end_date - start_date).days < 7:
+                    raise serializers.ValidationError({'end_date': 'Weekly pulses require an end date at least 7 days after the start date.'})
+            elif frequency == 'monthly':
+                if not end_date:
+                    raise serializers.ValidationError({'end_date': 'An end date is required for monthly pulses (minimum 30 days).'})
+                if (end_date - start_date).days < 30:
+                    raise serializers.ValidationError({'end_date': 'Monthly pulses require an end date at least 30 days after the start date.'})
+            elif end_date and end_date < start_date:
+                raise serializers.ValidationError({'end_date': 'End date cannot be before start date.'})
+
+        return attrs
 
     def create(self, validated_data):
         org_id = validated_data.get('organisation_id')
@@ -25,7 +46,6 @@ class ProspectPulseSerializer(serializers.ModelSerializer):
             org_id=org_id,
             name=validated_data.get('name'),
             frequency=validated_data.get('frequency', 'daily'),
-            custom_days=validated_data.get('custom_days'),
             start_date=validated_data.get('start_date'),
             end_date=validated_data.get('end_date'),
             input_type=validated_data.get('input_type', 'text'),

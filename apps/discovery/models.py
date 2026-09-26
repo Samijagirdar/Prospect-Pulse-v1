@@ -9,6 +9,7 @@ class DiscoveryRun(models.Model):
         ('running', 'Running'),
         ('completed', 'Completed'),
         ('failed', 'Failed'),
+        ('stopped', 'Stopped'),
     ]
 
     pulse = models.ForeignKey(Pulse, on_delete=models.CASCADE, related_name='discovery_runs')
@@ -18,6 +19,9 @@ class DiscoveryRun(models.Model):
     articles_scraped = models.IntegerField(default=0)
     articles_relevant = models.IntegerField(default=0)
     leads_extracted = models.IntegerField(default=0)
+    prompt_tokens = models.IntegerField(default=0)
+    completion_tokens = models.IntegerField(default=0)
+    total_tokens = models.IntegerField(default=0)
     error_message = models.TextField(null=True, blank=True)
 
     def __str__(self):
@@ -88,10 +92,37 @@ class Lead(models.Model):
     reason = models.TextField(null=True, blank=True)
     email = models.EmailField(max_length=255, null=True, blank=True)
     phone = models.CharField(max_length=50, null=True, blank=True)
+    linkedin_url = models.URLField(max_length=500, null=True, blank=True)
     extracted_at = models.DateTimeField(auto_now_add=True)
+
 
     def __str__(self):
         return f"{self.name} ({self.organization_name})"
+
+    @property
+    def article_date_display(self):
+        art = self.source_article
+        if art and art.publication_date:
+            try:
+                from email.utils import parsedate_to_datetime
+                dt = parsedate_to_datetime(art.publication_date)
+                return dt.strftime('%b %d, %Y')
+            except Exception:
+                pass
+            try:
+                from django.utils.dateparse import parse_datetime, parse_date
+                dt = parse_datetime(art.publication_date) or parse_date(art.publication_date)
+                if dt:
+                    return dt.strftime('%b %d, %Y')
+            except Exception:
+                pass
+            return str(art.publication_date)[:16]
+        if art and art.scraped_at:
+            return art.scraped_at.strftime('%b %d, %Y')
+        if self.extracted_at:
+            return self.extracted_at.strftime('%b %d, %Y')
+        return "Recent"
+
 
 
 class Competitor(models.Model):
@@ -102,12 +133,19 @@ class Competitor(models.Model):
     discovery_run = models.ForeignKey(DiscoveryRun, on_delete=models.CASCADE, related_name='extracted_competitors', null=True, blank=True)
     source_article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='extracted_competitors')
     name = models.CharField(max_length=255)
+    competitor_type = models.CharField(
+        max_length=50,
+        default='direct',
+        choices=[('direct', 'Direct Competitor'), ('indirect', 'Indirect Alternative')],
+        null=True,
+        blank=True
+    )
     buying_signal = models.CharField(max_length=255, null=True, blank=True)
     reason = models.TextField(null=True, blank=True)
     extracted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} (Mentioned in {self.pulse.name})"
+        return f"{self.name} ({self.competitor_type or 'direct'}) (Mentioned in {self.pulse.name})"
 
 
 class Correction(models.Model):

@@ -417,7 +417,7 @@
                 {% if art.executive_summary %}
                 <button
                   class="btn btn-secondary btn-sm btn-view-summary"
-                  data-summary="{{ art.executive_summary|escapejs }}"
+                  data-summary="{{ art.executive_summary|escape }}"
                   style="
                     font-size: 11px;
                     padding: 4px 10px;
@@ -444,6 +444,7 @@
                   </svg>
                   View Summary
                 </button>
+                <div class="article-summary-data d-none">{{ art.executive_summary }}</div>
                 {% else %}
                 <button
                   class="btn-summarize-premium btn-summarize-manual"
@@ -778,15 +779,14 @@
         margin-bottom: 24px;
         background: rgba(0, 0, 0, 0.02);
         padding: 20px;
-        border-radius: 10px;
+        border-radius: 12px;
         border: 1px solid var(--border);
-        max-height: 250px;
+        max-height: 320px;
         overflow-y: auto;
         word-break: break-word;
-        white-space: pre-wrap;
       "
     >
-      <!-- Populated dynamically -->
+      <!-- Populated dynamically as structured bullets -->
     </div>
 
     <div style="display: flex; justify-content: flex-end">

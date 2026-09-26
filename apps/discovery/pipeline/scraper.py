@@ -1,63 +1,45 @@
 import asyncio
-import json
-import time
+import email.utils
 import xml.etree.ElementTree as ET
-from urllib.parse import urlencode, quote, unquote
+from urllib.parse import urlencode, unquote
 from datetime import datetime, timedelta
 import random
 import re
-import email.utils
-from playwright.async_api import async_playwright
 
-from apps.discovery.models import Article
+import httpx
+try:
+    import trafilatura
+except ImportError:
+    trafilatura = None
+
+try:
+    from curl_cffi import requests as curl_requests
+    CURL_CFFI_AVAILABLE = True
+except ImportError:
+    curl_requests = None
+    CURL_CFFI_AVAILABLE = False
+
 
 class GoogleNewsScraper:
     def __init__(self):
-        self.browser = None
-        self.page = None
         self.base_url = "https://news.google.com/rss"
-
-    async def setup_browser(self, proxy_config=None):
-        """Setup browser with anti-detection measures"""
-        playwright = await async_playwright().start()
-
-        launch_options = {
-            'headless': True,
-            'args': [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-blink-features=AutomationControlled',
-                '--disable-dev-shm-usage',
-            ]
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
         }
 
-        if proxy_config and proxy_config.get('enabled', False):
-            country = proxy_config.get('country', 'US').lower()
-            username = f"username-{country}-rotate"
-            launch_options['proxy'] = {
-                'server': proxy_config.get('server', 'http://p.webshare.io:80'),
-                'username': proxy_config.get('username', username),
-                'password': proxy_config.get('password', 'password')
-            }
+    @staticmethod
+    async def _check_redirect_safety(response):
+        if response.is_redirect and 'location' in response.headers:
+            from urllib.parse import urljoin
+            from apps.pulses.services.ai.url_service import is_safe_public_url
+            target = urljoin(str(response.url), response.headers['location'])
+            if not is_safe_public_url(target):
+                raise httpx.RequestError(f"Blocked SSRF redirect to unsafe target: {target}")
 
-        self.browser = await playwright.chromium.launch(**launch_options)
-        context = await self.browser.new_context(
-            viewport={'width': 1920, 'height': 1080},
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        )
-
-        await context.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-        """)
-
-        self.page = await context.new_page()
-        await self.page.set_extra_http_headers({
-            'Accept': 'application/rss+xml, text/xml, */*',
-            'Accept-Language': 'en-US,en;q=0.9',
-        })
-
-    async def random_delay(self, min_seconds=1, max_seconds=3):
-        """Random delay between requests"""
+    async def random_delay(self, min_seconds=0.5, max_seconds=1.5):
+        """Polite random delay between external requests"""
         delay = random.uniform(min_seconds, max_seconds)
         await asyncio.sleep(delay)
 
@@ -76,9 +58,12 @@ class GoogleNewsScraper:
         return True
 
     async def scrape_news_rss(self, query, timeframe_days, search_config):
-        """Scrape news from Google RSS feed with configurable parameters"""
+        """
+        Scrape news from Google RSS feed using fast HTTPX as primary,
+        falling back to curl_cffi Chrome TLS impersonation if blocked.
+        """
         all_articles = []
-       
+        
         for page in range(search_config.get('pagination', 1)):
             search_params = {
                 'q': f"{query} when:{timeframe_days}d",
@@ -86,31 +71,122 @@ class GoogleNewsScraper:
                 'gl': search_config.get('gl', 'US'),
                 'ceid': f"{search_config.get('gl', 'US')}:{search_config.get('hl', 'en').split('-')[0]}"
             }
-           
+            
             if page > 0:
                 search_params['start'] = page * 10
 
             search_url = f"{self.base_url}/search?{urlencode(search_params)}"
             print(f"Scraping page {page + 1}: {search_url}")
 
-            try:
-                await self.page.goto(search_url, wait_until='domcontentloaded', timeout=30000)
-                await self.random_delay(1, 2)
+            content = None
 
-                content = await self.page.content()
+            # --- TIER 1: FAST HTTPX FETCH ---
+            try:
+                rss_headers = {
+                    'User-Agent': self.headers['User-Agent'],
+                    'Accept': 'application/rss+xml, text/xml, */*'
+                }
+                async with httpx.AsyncClient(
+                    follow_redirects=True,
+                    timeout=12.0,
+                    headers=rss_headers,
+                    event_hooks={'response': [self._check_redirect_safety]}
+                ) as client:
+                    resp = await client.get(search_url)
+                    if resp.status_code == 200 and resp.text:
+                        content = resp.text
+                        print(f"Fast HTTPX fetch succeeded for page {page + 1} ({len(content)} bytes)")
+            except Exception as httpx_err:
+                print(f"Fast HTTPX fetch failed or blocked: {httpx_err}")
+
+            # --- TIER 2: STEALTH CURL_CFFI CHROME IMPERSONATION ---
+            if not content and CURL_CFFI_AVAILABLE:
+                try:
+                    loop = asyncio.get_running_loop()
+                    def _curl_get():
+                        return curl_requests.get(search_url, impersonate="chrome", timeout=15)
+                    
+                    resp = await loop.run_in_executor(None, _curl_get)
+                    if resp.status_code == 200 and resp.text:
+                        content = resp.text
+                        print(f"curl_cffi stealth fetch succeeded for page {page + 1}")
+                except Exception as c_err:
+                    print(f"curl_cffi stealth fetch failed for '{query}': {c_err}")
+
+            if content:
                 articles = await self.parse_rss_xml(content, query, page + 1, timeframe_days)
                 all_articles.extend(articles)
-               
                 print(f"Found {len(articles)} articles on page {page + 1}")
-               
+                
                 if not articles and page > 0:
                     break
-                   
-            except Exception as e:
-                print(f"Error scraping page {page + 1} for '{query}': {e}")
-                break
 
         return all_articles
+
+    async def extract_article_content(self, url):
+        """
+        Extract full main text of an article using a 100% free, 3-tier cascade:
+        Tier 1 (Main): Trafilatura + HTTPX (Fastest, 100ms, removes boilerplate/nav/footer)
+        Tier 2 (Stealth): curl_cffi + Trafilatura (Chrome TLS spoofing, bypasses Cloudflare/403)
+        Tier 3 (Cloud JS): Jina Reader API (Free cloud proxy rendering dynamic JavaScript to markdown)
+        """
+        if not url:
+            return ""
+
+        # SSRF Defense: Block requests to localhost, loopback, private networks, and cloud metadata
+        try:
+            from apps.pulses.services.ai.url_service import is_safe_public_url
+            if not is_safe_public_url(url):
+                print(f"[Security] Blocked potential SSRF attempt to non-public/private target: {url}")
+                return ""
+        except Exception as ssrf_err:
+            print(f"[Security] URL validation error for {url}: {ssrf_err}")
+
+        # 1. TIER 1: TRAFILATURA + HTTPX (PRIMARY MAIN ENGINE)
+        if trafilatura:
+            try:
+                async with httpx.AsyncClient(
+                    follow_redirects=True,
+                    timeout=10.0,
+                    headers=self.headers,
+                    event_hooks={'response': [self._check_redirect_safety]}
+                ) as client:
+                    res = await client.get(url)
+                    if res.status_code == 200 and res.text:
+                        extracted_text = trafilatura.extract(res.text, include_links=False, include_comments=False)
+                        if extracted_text and len(extracted_text.strip()) > 100:
+                            return extracted_text.strip()
+            except Exception as e:
+                print(f"[Tier 1 Trafilatura] Direct fetch failed for {url}: {e}")
+
+        # 2. TIER 2: CURL_CFFI (STEALTH CHROME TLS SPOOFING) + TRAFILATURA
+        if CURL_CFFI_AVAILABLE and trafilatura:
+            try:
+                loop = asyncio.get_running_loop()
+                def _curl_fetch():
+                    return curl_requests.get(url, impersonate="chrome", timeout=12, headers=self.headers)
+                
+                resp = await loop.run_in_executor(None, _curl_fetch)
+                if resp.status_code == 200 and resp.text:
+                    extracted_text = trafilatura.extract(resp.text, include_links=False, include_comments=False)
+                    if extracted_text and len(extracted_text.strip()) > 100:
+                        return extracted_text.strip()
+            except Exception as curl_err:
+                print(f"[Tier 2 curl_cffi] Stealth fetch failed for {url}: {curl_err}")
+
+        # 3. TIER 3: JINA READER API (100% FREE CLOUD JAVASCRIPT & MARKDOWN PROXY)
+        try:
+            jina_url = f"https://r.jina.ai/{url}"
+            async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
+                res = await client.get(jina_url)
+                if res.status_code == 200 and res.text:
+                    cleaned_markdown = self.clean_text(res.text)
+                    if len(cleaned_markdown) > 100:
+                        return cleaned_markdown
+        except Exception as jina_err:
+            print(f"[Tier 3 Jina Reader] Free cloud fallback failed for {url}: {jina_err}")
+
+        return ""
 
     async def parse_rss_xml(self, xml_content, query, page_num, timeframe_days):
         """Parse RSS XML content and extract articles"""
@@ -287,7 +363,6 @@ class GoogleNewsScraper:
                 'pagination': 1
             }
 
-        await self.setup_browser(proxy_config)
         try:
             for i, query in enumerate(queries):
                 print(f"\nProcessing query {i+1}/{len(queries)}: {query}")
@@ -296,14 +371,12 @@ class GoogleNewsScraper:
                 print(f"Found {len(articles)} articles for '{query}'")
 
                 if i < len(queries) - 1:
-                    delay = random.uniform(2, 5)
-                    await asyncio.sleep(delay)
+                    await asyncio.sleep(0.5)
         finally:
             await self.close()
 
         return all_articles
 
     async def close(self):
-        """Close browser"""
-        if self.browser:
-            await self.browser.close()
+        """Cleanup resources if needed (backward compatibility)"""
+        pass

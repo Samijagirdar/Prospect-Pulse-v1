@@ -1,5 +1,5 @@
 from . import pdf_service, url_service, gemini_service
-from ...models import Pulse, CompanyProfile, Persona, TargetCompetitor, Keyword, BuyingSignal
+from ...models import CompanyProfile, Persona, TargetCompetitor, Keyword, BuyingSignal
 
 def save_ai_pulse_insights_orm(pulse, company_profile_data, personas_data, competitors_data, keywords_data, buying_signals_data):
     # Upsert CompanyProfile
@@ -201,7 +201,13 @@ def generate_ai_pulse_insights(pulse):
         
     result = None
     if raw_text.strip():
-        result = gemini_service.call_gemini_api(raw_text)
+        result = gemini_service.call_gemini_api(
+            raw_text,
+            company_name=pulse.name,
+            website_url=pulse.url if pulse.input_type == 'url' else None,
+            target_geography=getattr(pulse, 'target_geography', None)
+        )
+
         
     if result:
         summary = result.get('company_summary') or {}
