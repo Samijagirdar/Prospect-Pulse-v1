@@ -1,70 +1,47 @@
-# Prospect Pulse v2.0
+# Prospect Pulse v2
 
-Prospect Pulse is an AI-driven B2B intelligence and lead discovery platform built on Django. It automates web scraping, semantic deduplication, LLM-based relevance classification, and lead extraction for target accounts and Ideal Customer Profiles (ICPs).
+> **Autonomous B2B Intelligence, Competitive Surveillance & AI Research Analyst Platform**
 
----
-
-## What's New in v2.0
-
-- **Multi-Source Scraping**: Integrated Google News RSS, Bing News, and direct publisher scrapers with robust anti-bot headers and rate-limiting.
-- **Semantic Deduplication**: Near-duplicate article clustering using 64-bit SimHash and configurable Hamming distance thresholds.
-- **LLM-Driven Relevance & Lead Extraction**: Powered by Google Gemini (`gemini-2.5-flash`) for relevance scoring, sentiment analysis, key account extraction, and contact discovery.
-- **Enrichment & Fallback Integration**: External lead enrichment client (Disburse API integration) with automated retries and schema validation.
-- **Data Export Capabilities**: One-click export of discovered leads and target accounts into Excel (`.xlsx`) and CSV formats.
-- **Security & Production Hardening**: Strict CSRF protection, secure cookie flags, environment-driven secrets, sanitized structured logging, and verified `check --deploy` compliance.
-- **Asynchronous Architecture**: Celery worker and Celery beat scheduling backed by Redis.
+Prospect Pulse is an enterprise intelligence engine designed to turn raw global market signals into high-converting commercial opportunities. By operating as an autonomous, 24/7 AI Research Analyst, Prospect Pulse eliminates manual market research, continuously monitors industry ecosystems, and identifies high-intent target accounts and key decision-makers.
 
 ---
 
-## Tech Stack
+## Core Capabilities
 
-- **Backend**: Python 3.11+ / Django 5.x
-- **Task Queue**: Celery 5.x + Redis
-- **AI / LLM**: Google Gemini (`google-genai` / `google-generativeai`)
-- **Scraping & Parsing**: BeautifulSoup4, lxml, Feedparser, Requests
-- **Frontend**: Django Templates, Bootstrap 5, Custom CSS/JS
+### 1. B2B Account & Lead Intelligence
+- **Precision ICP Targeting**: Automatically tracks and surfaces accounts that match specific Ideal Customer Profiles (ICPs) based on target industries, company stages, regions, and strategic priorities.
+- **Decision-Maker Discovery**: Identifies key business stakeholders, executives, and leadership changes directly connected to high-priority business events.
+- **Commercial Context & Intent**: Delivers structured intelligence detailing *why* an account is relevant now, arming revenue teams with warm, context-rich conversation starters.
 
----
+### 2. Competitive Intelligence & Market Surveillance
+- **Continuous Competitor Tracking**: Actively monitors key competitors across the market to uncover strategic shifts, funding announcements, executive turnover, product updates, and go-to-market initiatives.
+- **Threat & Opportunity Radar**: Analyzes competitor movements to identify market gaps, counter-positioning opportunities, and vulnerable accounts.
+- **Industry Trend Detection**: Aggregates macro-level developments and regulatory shifts to keep business strategy ahead of market changes.
 
-## Quickstart
+### 3. Virtual AI Research Analyst
+- **Signal-to-Noise Filtering**: Scans vast streams of unstructured market information and filters out over 90% of noise, delivering only high-relevance, verifiable commercial intelligence.
+- **Automated Synthesis**: Synthesizes complex market events into clear, executive-grade briefing summaries with sentiment analysis and strategic impact scoring.
+- **Event-Driven Buying Triggers**: Detects critical commercial events—such as expansion, hiring surges, vendor dissatisfaction, leadership restructuring, and M&A—to facilitate timely, trigger-based outreach.
 
-### 1. Environment Setup
-```bash
-python -m venv venv
-# Linux / macOS
-source venv/bin/activate
-# Windows
-.\venv\Scripts\activate
+### 4. Custom Pulse Campaigns
+- **Tailored Monitoring Tracks**: Create custom intelligence Pulses focused on specific verticals, geographic regions, target keywords, or account lists.
+- **Configurable Cadence**: Run continuous, scheduled intelligence sweeps to keep pipelines updated with real-time discoveries.
+- **Unified Intelligence Hub**: Review accounts, competitors, market signals, and executive insights from a centralized operational dashboard.
 
-pip install -r requirements.txt
-```
-
-### 2. Configure Environment Variables
-Copy the example environment file and set your keys:
-```bash
-cp .env.example .env
-```
-Ensure you provide your `SECRET_KEY` and `GOOGLE_API_KEY`.
-
-### 3. Database & Migrations
-```bash
-python manage.py migrate
-python manage.py createsuperuser
-```
-
-### 4. Run Services
-```bash
-# Terminal 1: Redis Broker
-redis-server
-
-# Terminal 2: Celery Worker
-celery -A prospect_pulse worker -l info
-
-# Terminal 3: Django Web App
-python manage.py runserver
-```
+### 5. Seamless Workflow Integration
+- **Direct Data Export**: One-click export of target accounts, verified contact information, and intelligence briefs into Excel and CSV for immediate CRM ingestion.
+- **Auditable Sourcing**: Every intelligence insight is tied back to primary reference material, ensuring transparency and credibility for sales and strategy teams.
 
 ---
 
-## License
-Proprietary / All Rights Reserved.
+## Who Benefits from Prospect Pulse?
+
+- **Sales Development & Revenue Teams**: Shift from cold outreach to trigger-based selling with verified decision-maker context.
+- **Strategy & Corporate Development**: Maintain real-time visibility into competitive maneuvers, partnerships, and market dynamics.
+- **Product & Market Research**: Understand evolving customer pain points and benchmark competitive solutions continuously.
+
+---
+
+## License & Confidentiality
+Copyright &copy; 2026 Prospect Pulse. All rights reserved.  
+*Confidential and proprietary software. Unauthorized reproduction, distribution, or reverse engineering is strictly prohibited.*
